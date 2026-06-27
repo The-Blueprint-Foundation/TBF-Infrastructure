@@ -1,0 +1,35 @@
+###############################################################################
+# terraform.tfvars.example
+# Copy to terraform.tfvars and fill in your values.
+# Never commit terraform.tfvars to source control.
+###############################################################################
+
+project_id = "your-gcp-project-id"
+region     = "us-central1"
+zone       = "us-central1-a"
+app_name   = "fastapi-app"
+
+# Networking
+vpc_cidr = "10.0.0.0/24"
+
+# Restrict these to your own IP in practice:
+# ssh_source_ranges    = ["203.0.113.0/32"]
+# allowed_http_ranges  = ["0.0.0.0/0"]
+
+# Compute
+api_machine_type = "e2-small"
+vm_image        = "debian-cloud/debian-12"
+api_port    = 8000
+
+# Database
+db_version = "POSTGRES_16"
+db_tier    = "db-f1-micro"
+db_name    = "appdb"
+db_app_user    = "appuser"
+db_data_user = "datauser"
+# db_app_user_password and db_data_user_password are set via environment variable to keep it out of this file:
+#   export TF_VAR_db_password="your-secure-password" && export TF_VAR_db_data_user_password="your-other-secure-password"
+
+# IAP tunnel access – add your Google account(s) here
+# iap_tunnel_users = ["user:you@example.com"]
+
