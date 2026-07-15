@@ -37,6 +37,14 @@ resource "google_iap_tunnel_instance_iam_member" "api_tunnel_access" {
   member   = each.value
 }
 
+resource "google_project_iam_member" "team_compute_viewer" {
+  for_each = toset(var.iap_tunnel_users)
+
+  project = var.project_id
+  role    = "roles/compute.viewer"
+  member  = each.value
+}
+
 # ── Compute instance ──────────────────────────────────────────────────────────
 
 resource "google_compute_instance" "api_vm" {
