@@ -92,8 +92,8 @@ resource "google_compute_instance" "mqtt_vm" {
     # DB connection info available for the subscriber process you'll write.
     db-host     = google_sql_database_instance.postgres.private_ip_address
     db-name     = var.db_name
-    db-user     = var.db_data_user
-    db-password = var.db_data_user_password
+    db-user     = var.db_user
+    db-password = var.db_password
   }
 
   metadata_startup_script = templatefile("${path.module}/scripts/mqtt_startup.sh", {
