@@ -83,8 +83,8 @@ resource "google_compute_instance" "api_vm" {
     # Passes DB connection info as instance metadata for the startup script to read.
     db-host     = google_sql_database_instance.postgres.private_ip_address
     db-name     = var.db_name
-    db-user     = var.db_app_user
-    db-password = var.db_app_user_password
+    db-user     = var.db_user
+    db-password = var.db_password
   }
 
   metadata_startup_script = templatefile("${path.module}/scripts/api_startup.sh", {

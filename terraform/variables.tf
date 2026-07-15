@@ -118,26 +118,14 @@ variable "db_name" {
   default     = "appdb"
 }
 
-variable "db_app_user" {
+variable "db_user" {
   description = "PostgresSQL user for the application."
   type        = string
   default     = "appuser"
 }
 
-variable "db_app_user_password" {
+variable "db_password" {
   description = "Password for the application DB user. Supply via TF_VAR or Secret Manager."
-  type        = string
-  sensitive   = true
-}
-
-variable "db_data_user" {
-  description = "PostgresSQL user for data ingestion."
-  type        = string
-  default     = "datauser"
-}
-
-variable "db_data_user_password" {
-  description = "Password for the data-ingestion DB user. Supply via TF_VAR or Secret Manager."
   type        = string
   sensitive   = true
 }

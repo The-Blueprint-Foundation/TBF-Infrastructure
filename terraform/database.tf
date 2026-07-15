@@ -56,15 +56,7 @@ resource "google_sql_database" "app_db" {
 # The user that will be used by the API. This user should only have read-only 
 # privileges to the database, perhaps even limited access to certain tables/views
 resource "google_sql_user" "app_user" {
-  name     = var.db_app_user
+  name     = var.db_user
   instance = google_sql_database_instance.postgres.name
-  password = var.db_app_user_password
-}
-
-# The user that will be used by the data ingestion pipeline. This user should only 
-# have access to resources that aid in getting data into the database (ie. a stored procedure)
-resource "google_sql_user" "data_user" {
-  name     = var.db_data_user
-  instance = google_sql_database_instance.postgres.name
-  password = var.db_data_user_password
+  password = var.db_password
 }
