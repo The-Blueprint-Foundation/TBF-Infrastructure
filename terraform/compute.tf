@@ -27,6 +27,16 @@ resource "google_project_iam_member" "api_monitoring" {
 # tunnel to this specific VM instance. This is the minimum required permission
 # — it does not grant any broader project access.
 
+resource "google_project_iam_custom_role" "tunnel_user" {
+  role_id     = "tunnelUser"
+  title       = "IAP Tunnel User"
+  description = "Minimal permissions for gcloud IAP SSH tunnel access"
+  permissions = [
+    "resourcemanager.projects.get",
+    "resourcemanager.projects.getIamPolicy",
+  ]
+}
+
 resource "google_iap_tunnel_instance_iam_member" "api_tunnel_access" {
   for_each = toset(var.iap_tunnel_users)
 
@@ -42,6 +52,14 @@ resource "google_project_iam_member" "team_compute_viewer" {
 
   project = var.project_id
   role    = "roles/compute.viewer"
+  member  = each.value
+}
+
+resource "google_project_iam_member" "team_tunnel_user" {
+  for_each = toset(var.iap_tunnel_users)
+
+  project = var.project_id
+  role    = google_project_iam_custom_role.tunnel_user.id
   member  = each.value
 }
 
