@@ -55,6 +55,12 @@ resource "google_compute_instance" "mqtt_vm" {
   zone         = var.zone
   tags         = ["mqtt-vm"]
 
+  lifecycle {
+    ignore_changes = [
+      metadata["ssh-keys"],
+    ]
+  }
+  
   boot_disk {
     initialize_params {
       image = var.vm_image
@@ -90,15 +96,12 @@ resource "google_compute_instance" "mqtt_vm" {
 
   metadata = {
     # DB connection info available for the subscriber process you'll write.
+    # API credentials are intentionally absent
     db-host     = google_sql_database_instance.postgres.private_ip_address
     db-name     = var.db_name
-    db-user     = var.db_user
-    db-password = var.db_password
+    db-user     = var.subscriber_db_user
+    db-password = var.subscriber_db_password
   }
-
-  metadata_startup_script = templatefile("${path.module}/scripts/mqtt_startup.sh", {
-    mqtt_port = tostring(var.mqtt_port)
-  })
 
   depends_on = [
     google_sql_database_instance.postgres,

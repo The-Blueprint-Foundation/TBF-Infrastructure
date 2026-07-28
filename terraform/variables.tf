@@ -129,3 +129,27 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
+
+variable "api_db_user" {
+  description = "PostgreSQL user for the FastAPI application (read-only)."
+  type        = string
+  default     = "api_reader"
+}
+
+variable "api_db_password" {
+  description = "Password for the API DB user. Supply via TF_VAR or Secret Manager."
+  type        = string
+  sensitive   = true
+}
+
+variable "subscriber_db_user" {
+  description = "PostgreSQL user for the MQTT subscriber (write-only)."
+  type        = string
+  default     = "mqtt_writer"
+}
+
+variable "subscriber_db_password" {
+  description = "Password for the subscriber DB user. Supply via TF_VAR or Secret Manager."
+  type        = string
+  sensitive   = true
+}
