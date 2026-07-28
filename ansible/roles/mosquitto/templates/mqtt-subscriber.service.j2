@@ -1,0 +1,23 @@
+# /etc/systemd/system/mqtt-subscriber.service
+# Managed by Ansible — do not edit manually.
+
+[Unit]
+Description=MQTT subscriber service
+After=network.target mosquitto.service
+Requires=mosquitto.service
+
+[Service]
+User=nobody
+WorkingDirectory={{ subscriber_dir }}
+EnvironmentFile={{ subscriber_dir }}/.env
+ExecStart={{ subscriber_venv }}/bin/python subscriber.py
+Restart=always
+RestartSec=5
+
+# Ensure the service is restarted if it exits too quickly,
+# rather than being put into a failed state immediately.
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Install]
+WantedBy=multi-user.target

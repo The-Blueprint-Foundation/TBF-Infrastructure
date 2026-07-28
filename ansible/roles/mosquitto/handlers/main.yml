@@ -1,0 +1,20 @@
+---
+# ansible/roles/mosquitto/handlers/main.yml
+# Handlers are only triggered when a notifying task reports a change.
+
+- name: Restart mosquitto
+  ansible.builtin.systemd:
+    name: mosquitto
+    state: restarted
+  become: true
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+
+- name: Restart mqtt-subscriber
+  ansible.builtin.systemd:
+    name: mqtt-subscriber
+    state: restarted
+  become: true

@@ -1,0 +1,28 @@
+---
+# ansible/site.yml
+# Top-level playbook. 
+#
+# Usage:
+#   ansible-playbook -i inventory/ site.yml
+#
+# To target a single group:
+#   ansible-playbook -i inventory/ site.yml --limit tag_mqtt_vm
+
+- name: Apply common configuration to all VMs
+  hosts: all
+  gather_facts: true
+  roles:
+    - common
+
+- name: Configure MQTT broker VM
+  hosts: tag_mqtt_vm
+  gather_facts: false
+  roles:
+    - mosquitto
+
+# API VM play — to be added once the api role is created.
+# - name: Configure API VM
+#   hosts: tag_fastapi_vm
+#   gather_facts: false
+#   roles:
+#     - api

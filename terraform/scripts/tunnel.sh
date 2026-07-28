@@ -72,7 +72,8 @@ gcloud compute ssh "${API_VM}" \
   -- \
   -N \
   -L "${LOCAL_API_PORT}:localhost:${API_PORT}" \
-  -L "${LOCAL_PG_PORT}:${SQL_IP}:5432" &
+  -L "${LOCAL_PG_PORT}:${SQL_IP}:5432" \
+  -L "2222:localhost:22" &
 PIDS+=($!)
 
 # ── Tunnel 2: MQTT broker VM – forwards Mosquitto port ───────────────────────
@@ -82,7 +83,8 @@ gcloud compute ssh "${MQTT_VM}" \
   --tunnel-through-iap \
   -- \
   -N \
-  -L "${LOCAL_MQTT_PORT}:localhost:1883" &
+  -L "${LOCAL_MQTT_PORT}:localhost:1883" \
+  -L "2223:localhost:22" &
 PIDS+=($!)
 
 # Wait for both background jobs — script stays alive until Ctrl-C.

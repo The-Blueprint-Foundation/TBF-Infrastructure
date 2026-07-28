@@ -1,0 +1,14 @@
+---
+# ansible/roles/mosquitto/defaults/main.yml
+
+mqtt_port: 1883
+mqtt_persistence_location: /var/lib/mosquitto/
+mqtt_log_dest: /var/log/mosquitto/mosquitto.log
+
+subscriber_dir: /opt/mqtt-subscriber
+subscriber_venv: /opt/mqtt-subscriber/.venv
+
+subscriber_packages:
+  - paho-mqtt
+  - psycopg2-binary
+  - python-dotenv

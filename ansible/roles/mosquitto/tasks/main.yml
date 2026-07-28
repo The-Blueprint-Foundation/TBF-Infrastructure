@@ -1,0 +1,90 @@
+---
+# ansible/roles/mosquitto/tasks/main.yml
+
+# ── Mosquitto ─────────────────────────────────────────────────────────────────
+
+- name: Install Mosquitto and clients
+  ansible.builtin.apt:
+    name:
+      - mosquitto
+      - mosquitto-clients
+    state: present
+  become: true
+
+- name: Template Mosquitto broker config
+  ansible.builtin.template:
+    src: broker.conf.j2
+    dest: /etc/mosquitto/conf.d/broker.conf
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Restart mosquitto
+
+- name: Ensure Mosquitto is enabled and running
+  ansible.builtin.systemd:
+    name: mosquitto
+    enabled: true
+    state: started
+  become: true
+
+# ── Subscriber Python environment ─────────────────────────────────────────────
+
+- name: Create subscriber directory
+  ansible.builtin.file:
+    path: "{{ subscriber_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Create Python virtual environment
+  ansible.builtin.command:
+    cmd: python3 -m venv {{ subscriber_venv }}
+    creates: "{{ subscriber_venv }}/bin/activate"
+  become: true
+
+- name: Upgrade pip in venv
+  ansible.builtin.pip:
+    name: pip
+    state: latest
+    virtualenv: "{{ subscriber_venv }}"
+  become: true
+
+- name: Install subscriber Python dependencies
+  ansible.builtin.pip:
+    name: "{{ subscriber_packages }}"
+    state: present
+    virtualenv: "{{ subscriber_venv }}"
+  become: true
+
+- name: Template subscriber .env file
+  ansible.builtin.template:
+    src: subscriber.env.j2
+    dest: "{{ subscriber_dir }}/.env"
+    owner: root
+    group: root
+    mode: "0600"
+  become: true
+
+# ── Subscriber systemd service ────────────────────────────────────────────────
+
+- name: Template subscriber systemd service unit
+  ansible.builtin.template:
+    src: mqtt-subscriber.service.j2
+    dest: /etc/systemd/system/mqtt-subscriber.service
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify:
+    - Reload systemd
+    - Restart mqtt-subscriber
+
+- name: Enable mqtt-subscriber service
+  ansible.builtin.systemd:
+    name: mqtt-subscriber
+    enabled: true
+    daemon_reload: true
+  become: true
