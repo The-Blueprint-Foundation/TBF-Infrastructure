@@ -1,0 +1,3 @@
+#Just in case added .venv here for some reason
+.venv/
+../.venv/
