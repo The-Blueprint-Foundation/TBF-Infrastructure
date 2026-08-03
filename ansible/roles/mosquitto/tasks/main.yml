@@ -28,36 +28,21 @@
     state: started
   become: true
 
-# ── Subscriber Python environment ─────────────────────────────────────────────
+# ── Subscriber ────────────────────────────────────────────────────────────────
+# Note: Python package installation is absent here — dependencies are managed
+# by the repository's requirements.txt and installed during deployment via
+# deploy.yml.
 
-- name: Create subscriber directory
-  ansible.builtin.file:
-    path: "{{ subscriber_dir }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-  become: true
-
-- name: Create Python virtual environment
-  ansible.builtin.command:
-    cmd: python3 -m venv {{ subscriber_venv }}
-    creates: "{{ subscriber_venv }}/bin/activate"
-  become: true
-
-- name: Upgrade pip in venv
-  ansible.builtin.pip:
-    name: pip
-    state: latest
-    virtualenv: "{{ subscriber_venv }}"
-  become: true
-
-- name: Install subscriber Python dependencies
-  ansible.builtin.pip:
-    name: "{{ subscriber_packages }}"
-    state: present
-    virtualenv: "{{ subscriber_venv }}"
-  become: true
+- name: Set up MQTT subscriber service
+  ansible.builtin.include_tasks:
+    file: setup_service.yml
+  vars:
+    service_name: mqtt-subscriber
+    service_description: MQTT subscriber service
+    service_working_dir: "{{ subscriber_dir }}"
+    service_env_file: "{{ subscriber_dir }}/.env"
+    service_venv: "{{ subscriber_venv }}"
+    service_script: subscriber.py
 
 - name: Template subscriber .env file
   ansible.builtin.template:
@@ -68,23 +53,34 @@
     mode: "0600"
   become: true
 
-# ── Subscriber systemd service ────────────────────────────────────────────────
+# ── Publishers ─────────────────────────────────────────────────────────────────
+# Add an include_tasks block per publisher as new integrations are added.
+# Each one reuses setup_service.yml with its own variable set.
+#
+# Example for a PurpleAir publisher:
+#
+# - name: Set up PurpleAir publisher service
+#   ansible.builtin.include_tasks:
+#     file: setup_service.yml
+#   vars:
+#     service_name: purpleair-publisher
+#     service_description: PurpleAir air quality data publisher
+#     service_working_dir: "{{ publishers_dir }}/purpleair"
+#     service_env_file: "{{ publishers_dir }}/purpleair/.env"
+#     service_venv: "{{ publishers_dir }}/purpleair/.venv"
+#     service_script: publisher.py
+#
+# Note: It may be cleaner to replace the repetitious string "{{ publishers_dir }}/__publisher-name__" 
+# with a publisher-specific variable in `defaults/main.yml`. See the "QuantAQ"
+# Publisher below as an example.
 
-- name: Template subscriber systemd service unit
-  ansible.builtin.template:
-    src: mqtt-subscriber.service.j2
-    dest: /etc/systemd/system/mqtt-subscriber.service
-    owner: root
-    group: root
-    mode: "0644"
-  become: true
-  notify:
-    - Reload systemd
-    - Restart mqtt-subscriber
-
-- name: Enable mqtt-subscriber service
-  ansible.builtin.systemd:
-    name: mqtt-subscriber
-    enabled: true
-    daemon_reload: true
-  become: true
+- name: Set up QuantAQ publisher service
+  ansible.builtin.include_tasks:
+    file: setup_service.yml
+  vars:
+    service_name: quantaq-publisher
+    service_description: QuantAQ air quality data publisher
+    service_working_dir: "{{ quantaq_dir }}"
+    service_env_file: "{{ quantaq_dir }}/.env"
+    service_venv: "{{ quantaq_venv }}"
+    service_script: publisher.py

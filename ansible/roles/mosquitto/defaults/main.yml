@@ -5,10 +5,16 @@ mqtt_port: 1883
 mqtt_persistence_location: /var/lib/mosquitto/
 mqtt_log_dest: /var/log/mosquitto/mosquitto.log
 
-subscriber_dir: /opt/mqtt-subscriber
-subscriber_venv: /opt/mqtt-subscriber/.venv
+# Root directory where the full monorepo is cloned.
+repo_dir: /opt/tbf-pipeline
 
-subscriber_packages:
-  - paho-mqtt
-  - psycopg2-binary
-  - python-dotenv
+# Subscriber paths — point into the monorepo subdirectory.
+subscriber_dir: "{{ repo_dir }}/subscriber"
+subscriber_venv: "{{ subscriber_dir }}/.venv"
+
+publishers_dir: "{{ repo_dir }}/publishers"
+quantaq_dir: "{{ publishers_dir }}/quantaq"
+quantaq_venv: "{{ quantaq_dir }}/.venv"
+
+# Python packages are intentionally absent here — they are managed by each
+# component's requirements.txt and installed during deployment via deploy.yml.

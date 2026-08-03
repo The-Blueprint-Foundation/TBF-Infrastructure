@@ -1,0 +1,139 @@
+---
+# ansible/deploy.yml
+# Deployment playbook — pulls latest code from git and restarts affected services.
+# Intentionally separate from site.yml which handles infrastructure configuration.
+#
+# Usage:
+#   Deploy to all VMs:
+#     ansible-playbook -i inventory/ deploy.yml
+#
+#   Deploy to MQTT VM only:
+#     ansible-playbook -i inventory/ deploy.yml --limit mqtt
+#
+#   Override the branch at runtime:
+#     ansible-playbook -i inventory/ deploy.yml -e "git_branch=feature/my-branch"
+
+# ── MQTT VM — subscriber and producers ───────────────────────────────────────
+
+- name: Deploy MQTT components
+  hosts: mqtt
+  gather_facts: false
+
+  vars:
+    git_branch: main
+
+  tasks:
+    - name: Clone or pull latest monorepo
+      ansible.builtin.git:
+        repo: "{{ pipeline_repo_url }}"
+        dest: "{{ repo_dir }}"
+        version: "{{ git_branch }}"
+        force: true
+      become: true
+      register: git_result
+
+    # ── Subscriber ────────────────────────────────────────────────────────────
+    - name: Subscriber | Check if requirements.txt exists
+      ansible.builtin.stat:
+        path: "{{ subscriber_dir }}/requirements.txt"
+      register: requirements_file
+
+    - name: Subscriber | Install subscriber dependencies
+      ansible.builtin.pip:
+        requirements: "{{ subscriber_dir }}/requirements.txt"
+        virtualenv: "{{ subscriber_venv }}"
+        state: present
+      become: true
+      when: git_result.changed and requirements_file.stat.exists
+
+    - name: Subscriber | Restart subscriber service if code changed
+      ansible.builtin.systemd:
+        name: mqtt-subscriber
+        state: restarted
+      become: true
+      when: git_result.changed
+
+    # ── Publishers ─────────────────────────────────────────────────────────────
+    # Add a block per publisher as new integrations are added.
+    # Each block installs its own requirements.txt and restarts its own service.
+    #
+    # Example for a PurpleAir publisher:
+    # - name: Check if requirements.txt exists
+    #   ansible.builtin.stat:
+    #     path: "{{ repo_dir }}/publishers/purupleair/requirements.txt"
+    #   register: requirements_file
+    #
+    # - name: Install PurpleAir publisher dependencies
+    #   ansible.builtin.pip:
+    #     requirements: "{{ repo_dir }}/publishers/purpleair/requirements.txt"
+    #     virtualenv: "{{ repo_dir }}/publishers/purpleair/.venv"
+    #     state: present
+    #   become: true
+    #   when: git_result.changed
+    #
+    # - name: Restart PurpleAir publisher service if code changed
+    #   ansible.builtin.systemd:
+    #     name: purpleair-publisher
+    #     state: restarted
+    #   become: true
+    #   when: git_result.changed
+
+    - name: QuantAQ Publisher | Check if requirements.txt exists
+      ansible.builtin.stat:
+        path: "{{ quantaq_dir }}/requirements.txt"
+      register: requirements_file
+
+    - name: QuantAQ Publisher | Install QuantAQ producer dependencies
+      ansible.builtin.pip:
+        requirements: "{{ quantaq_dir }}/requirements.txt"
+        virtualenv: "{{ quantaq_venv }}"
+        state: present
+      become: true
+      when: git_result.changed and requirements_file.stat.exists
+
+    - name: QuantAQ Publisher | Restart QuantAQ producer service if code changed
+      ansible.builtin.systemd:
+        name: quantaq-producer
+        state: restarted
+      become: true
+      when: git_result.changed
+
+# ── FastAPI VM ────────────────────────────────────────────────────────────────
+# Uncomment when the FastAPI role and repo are ready.
+
+# - name: Deploy FastAPI application
+#   hosts: fastapi
+#   gather_facts: false
+#
+#   vars:
+#     git_branch: main
+#
+#   tasks:
+#     - name: Clone or pull latest FastAPI code
+#       ansible.builtin.git:
+#         repo: "{{ fastapi_repo_url }}"
+#         dest: "{{ fastapi_app_dir }}"
+#         version: "{{ git_branch }}"
+#         force: true
+#       become: true
+#       register: git_result
+# 
+#     - name: Check if requirements.txt exists
+#       ansible.builtin.stat:
+#         path: "{{ fastapi_app_dir }}/requirements.txt"
+#       register: requirements_file
+#
+#     - name: Install FastAPI dependencies
+#       ansible.builtin.pip:
+#         requirements: "{{ fastapi_app_dir }}/requirements.txt"
+#         virtualenv: "{{ fastapi_venv }}"
+#         state: present
+#       become: true
+#       when: git_result.changed and requirements_file.stat.exists
+#
+#     - name: Restart FastAPI service if code changed
+#       ansible.builtin.systemd:
+#         name: fastapi
+#         state: restarted
+#       become: true
+#       when: git_result.changed

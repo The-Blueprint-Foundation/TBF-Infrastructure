@@ -1,6 +1,9 @@
 ---
 # ansible/roles/mosquitto/handlers/main.yml
 # Handlers are only triggered when a notifying task reports a change.
+#
+# The generic "Restart {{ service_name }}" handler covers all MQTT-related
+# services (subscriber, producers) without needing a handler per service.
 
 - name: Restart mosquitto
   ansible.builtin.systemd:
@@ -13,8 +16,11 @@
     daemon_reload: true
   become: true
 
-- name: Restart mqtt-subscriber
+# Generic restart handler — matches "Restart {{ service_name }}" notifications
+# from setup_service.yml, covering subscriber and any producer services.
+- name: Restart {{ service_name }}
   ansible.builtin.systemd:
-    name: mqtt-subscriber
+    name: "{{ service_name }}"
     state: restarted
   become: true
+  listen: "Restart {{ service_name }}"

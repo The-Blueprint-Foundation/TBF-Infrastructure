@@ -10,3 +10,11 @@ ansible_user: "{{ lookup('env', 'USER') }}"
 ansible_ssh_private_key_file: "~/.ssh/google_compute_engine"
 ansible_ssh_common_args: ""
 ansible_ssh_extra_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
+# ── Repository URLs ───────────────────────────────────────────────────────────
+# Used by deploy.yml to clone or pull the latest application code.
+# Since repositories are public, no authentication is required.
+ 
+pipeline_repo_url: "https://github.com/The-Blueprint-Foundation/TBF-Pipeline.git"
+fastapi_repo_url: "https://github.com/your-org/your-fastapi-repo"
+

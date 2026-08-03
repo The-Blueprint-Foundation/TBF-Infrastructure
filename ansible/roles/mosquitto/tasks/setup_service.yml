@@ -1,0 +1,59 @@
+---
+# ansible/roles/mosquitto/tasks/setup_service.yml
+# Reusable task file — sets up a Python venv and systemd service unit
+# for any MQTT-related component (subscriber, publishers, etc.).
+#
+# Expected variables (pass via include_tasks vars: or set in the calling play):
+#   service_name        : systemd unit name, e.g. "mqtt-subscriber"
+#   service_description : human-readable description for the unit file
+#   service_working_dir : working directory for the service process
+#   service_env_file    : path to the .env file the service reads
+#   service_venv        : path to the Python venv
+#   service_script      : Python script filename, e.g. "subscriber.py"
+
+- name: "{{ service_name }} | Create working directory"
+  ansible.builtin.file:
+    path: "{{ service_working_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: "{{ service_name }} | Create Python virtual environment"
+  ansible.builtin.command:
+    cmd: python3 -m venv {{ service_venv }}
+    creates: "{{ service_venv }}/bin/activate"
+  become: true
+
+- name: "{{ service_name }} | Upgrade pip in venv"
+  ansible.builtin.pip:
+    name: pip
+    state: latest
+    virtualenv: "{{ service_venv }}"
+  become: true
+
+- name: "{{ service_name }} | Template systemd service unit"
+  ansible.builtin.template:
+    src: mqtt-service.j2
+    dest: "/etc/systemd/system/{{ service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify:
+    - Reload systemd
+    - "Restart {{ service_name }}"
+
+- name: Check if service script exists
+  ansible.builtin.stat:
+    path: "{{ service_working_dir }}/{{ service_script }}"
+  register: service_script_file
+
+- name: "{{ service_name }} | Enable service"
+  ansible.builtin.systemd:
+    name: "{{ service_name }}"
+    enabled: true
+    daemon_reload: true
+  become: true
+  when: service_script_file.stat.exists

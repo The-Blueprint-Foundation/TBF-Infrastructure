@@ -1,16 +1,16 @@
-# /etc/systemd/system/mqtt-subscriber.service
+# /etc/systemd/system/{{ service_name }}.service
 # Managed by Ansible — do not edit manually.
 
 [Unit]
-Description=MQTT subscriber service
+Description={{ service_description }}
 After=network.target mosquitto.service
 Requires=mosquitto.service
 
 [Service]
 User=nobody
-WorkingDirectory={{ subscriber_dir }}
-EnvironmentFile={{ subscriber_dir }}/.env
-ExecStart={{ subscriber_venv }}/bin/python subscriber.py
+WorkingDirectory={{ service_working_dir }}
+EnvironmentFile={{ service_env_file }}
+ExecStart={{ service_venv }}/bin/python {{ service_script }}
 Restart=always
 RestartSec=5
 
