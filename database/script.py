@@ -1,4 +1,4 @@
-import datetime, random, csv, copy
+import datetime, random, csv, copy, sys, getopt
 from typing import override
 from dateutil import relativedelta
 from random_word import RandomWords
@@ -100,6 +100,9 @@ class fake_sensor():
             raise(error)
         return data
 
+    def get_name(self)->str:
+        return self.sensor_name
+
     @override
     def __str__(self):
         line=\
@@ -120,16 +123,6 @@ class fake_sensor():
 
 sensors: list[fake_sensor]
 
-#Update by 6 hours a day, (4 times a day) then average across all 6 hours,
-# 0.5  / 4 = 0.125 (PM)
-# 1.0  / 4 = 0.25 (HUMIDITY)
-# (x/3)/ 4 = x/12 (TEMP)
-
-#Update by 1 hour, (24 times a day)
-# 0.5 / 24 = 0.02083_ ~~ 0.0208 (PM)
-# 1.0 / 24 = 0.0416_  ~~ 0.0417 (HUMIDITY)
-# (x/3)/24 = x/72               (TEMP)
-
 def get_real_sensor_data(sensor_name: str)->list[list[float]]:
     """get_sensor_data placeholder to grab the data
 
@@ -137,66 +130,19 @@ def get_real_sensor_data(sensor_name: str)->list[list[float]]:
     """
     #do some magic...
     data: list[list[float]]
-    #data: dict[str,float] = {}
     data = [] #UPDATE
     if placeholder:
-        #data = {
-            #"pm1" : 20.0,
-            #"pm2.5": 20.0,
-            #"pm10": 5.0,
-            #"temperature": 50.0,
-            #"humidity": 70.0
-        #}
         baseline = [20.0, 20.0, 5.0, 50.0, 70.0]
         for num in range(24):
             flt: float = num / 10
             data.append([x + flt for x in baseline])
     return data
 
-def determine_weight(prev_weight: float, min_value: float, previous_value: float, max_value: float,  min_delta: float, previous_delta: float, max_delta: float):
-    above_or_below = lambda max_val, prev_val, target : (max_val / prev_val) > target
-    weight : float = 0.0
-    percentile : float = 0.0
-    rise_mult: float = 1.0
-    fall_mult: float = 1.0
-    percentiles = []
-    for fi in range(11):
-        curr: float = fi / 10
-        percentiles.append([above_or_below(max_value,previous_value,curr),above_or_below(max_delta,previous_delta,curr)])
-    for val_percent,del_percent in percentiles:
-        if percentile == 0: continue
-        if percentile < 0.25:
-            rise_mult = 4
-            fall_mult = 0.25
-        if percentile < 0.5:
-            rise_mult = 2
-            fall_mult = 0.5
-        if percentile == 0.5: #TRICK!
-            rise_mult = 1.5
-            fall_mult = 1.0
-        if percentile > 0.5:
-            rise_mult = 1
-            fall_mult = 2
-        if percentile > 0.75:
-            rise_mult = 0.5
-            fall_mult = 4
-        
-        #if val_percent and del_percent       : #HIGHER THAN PERCENTILE (HIGH), AND HIGHER DERIV (RISING)
-            ##weight = prev_weight + (percentile / mult)
-        #elif val_percent and not del_percent : #HIGHER THAN PERCENTILE (HIGH), AND LOWER  DERIV (FALLING)
-            ##weight = prev_weight - percentile * mult
-        #elif not val_percent and del_percent : #LOWER THAN PERCENTILE  (LOW) , AND HIGHER DERIV (RISING)
-            ##weight = prev_weight + percentile * mult
-        #else                                 : #LOWER THAN PERCENTILE  (LOW) , AND LOWER  DERIV (FALLING)
-            ##weight = prev_weight - (percentile / mult)
-        #percentile += 0.1
-
 def get_fake_sensor_loc(name: str)->tuple[str,str,float,float]:
     place                               = ""
     ranges: list[tuple[float,float]]    = []
     long                                = 0.0
     latt                                = 0.0
-    #is_g                                = False
     g = str("Gresham")
     p = str("East Portland")
     
@@ -326,77 +272,17 @@ def generate_data(before: datetime.date, today: datetime.date, after: datetime.d
     swapping_point = total_size - before_size
 
     
-    #sensor_days : tuple[tuple[str,str,float,float],list[tuple[datetime.time,float,float,float,float]]] = [None] * 10000
     sensor_names = [[None] * 4] * number_sensors
 
     if placeholder:
         today_data = get_real_sensor_data("PLACEHOLDER")
     else:
         today_data = get_real_sensor_data("") #UPDATE
-    #Deltas for : pm1 | pm2.5 | pm10 | temp | humidity
 
-    #get_values = lambda prev_values, month : [get_pm(prev_values[0], "pm1"),get_pm(prev_values[1],"pm2.5"),get_pm(prev_values[2], "pm10"), get_temp(prev_values[3], month - 1), get_humidity(prev_values[4])]
 
-    #[SENSOR DATA]
     for num in range(number_sensors):
         sensor_names[num] = get_fake_sensor_loc(word.get_random_word())  # pyright: ignore[reportCallIssue, reportArgumentType]
         sensors.append(generate_data_days(name_loc=sensor_names[num], today=today, today_data=today_data, start=before, end=after, total_size=total_size, swap_point=swapping_point))
-
-    
-    #[LIST OF DAYS], 
-    # [CURRENT DAY]
-    #   [TIME]
-    #   VALUES
-    #current_day    = today
-    #current_values = today_data
-    #day_index      = 0
-    #for day in range(total_size):
-        #today_list = []
-        #if day < swapping_point:
-            ##Thank you https://stackoverflow.com/a/3240486
-            #current_day -= datetime.timedelta(days=1)
-            #current_month = current_day.month
-            #day_index = swapping_point - day - 1
-        #elif day > swapping_point:
-            #current_day += datetime.timedelta(days=1)
-            #current_month = current_day.month
-            #day_index = day
-        #else: # day == swapping_point
-            #current_day = today
-            #current_values = today_data
-            #sensor_days[day_index] = today_data  # pyright: ignore[reportArgumentType, reportCallIssue]
-            #continue
-
-        #for twenty_fourth in range(24):
-            #current_values = (datetime.time(hour=twenty_fourth,minute=0),get_values(current_values, current_month))
-            #today_list.insert(twenty_fourth, current_values)  
-        ##Thank you https://stackoverflow.com/a/2541874
-        #sensor_days[day_index] = []
-        #sensor_days[day_index] = [x[:] for x in today_list]
-        #for i,values in enumerate(today_list):
-            #sensor_days[day_index][i] = values[:]
-    #return sensor_days
-        
-    #for day in range(before_size):
-        #current_day -= datetime.timedelta(days=1)
-        #current_month = current_day.month
-        #day_list = [None] * 4
-        #for fourth in range(4):
-            #current_values = get_values(current_values, current_month)
-            #day_list.insert(fourth, current_values)  # pyright: ignore[reportArgumentType]
-        #sensor_days[before_size - day] = day_list
-        #day_index += 1
-    #current_day = today
-    #current_values = today_data
-    #sensor_days[day_index] = today_data  # pyright: ignore[reportArgumentType, reportCallIssue]
-    #day_index += 1
-    #for day in range(after_size):
-        #current_day += datetime.timedelta(days=1)
-        #current_month = current_day.month
-        #day_list = [None] * 4
-        #for fourth in range(4):
-            #current_values=get_values(current_values, current_month)
-            #day_list.insert(fourth,current_values)
 
 def create_csv(sensors: list[fake_sensor], filename: str):
     #Thank you https://www.geeksforgeeks.org/python/working-csv-files-python/
@@ -408,58 +294,6 @@ def create_csv(sensors: list[fake_sensor], filename: str):
             writer.writerows(sensor.data_dict)
     return
 
-#def create_dummy():
-    ##from psycopg2.extensions import connection
-    ##Heavily relies on knowledge gained from: 
-    ##https://www.geeksforgeeks.org/python/python-postgresql-create-database/
-    ## NOTE REQUIRES TO CREATE 
-    #db: psycopg2.extensions.connection = psycopg2.connect(
-        #database="dummy",
-        #user="postgres",
-        #password="password",
-        #host="localhost"
-    #)
-    #db.autocommit = True
-    #db_cursor = db.cursor()
-
-    #drop_sensors = """DROP TABLE sensors; """
-    #drop_sensor_data = """ DROP TABLE sensors_data """
-
-    #create_data = """ CREATE TABLE sensors_data (
-        #id SERIAL PRIMARY KEY,
-        #datetime DATETIME,
-        #pm 1 FLOAT,
-        #pm 2.5 FLOAT,
-        #pm 10 FLOAT,
-        #temperature f FLOAT,
-        #humidity FLOAT
-    #);"""
-
-    #create_sensors = """ CREATE TABLE sensors  (
-    #name VARCHAR(32) PRIMARY KEY,
-    #longitude FLOAT,
-    #latitude FLOAT 
-    #id SERIAL FOREIGN KEY
-    #);"""
-
-
-
-    #create_sensor = """ INSERT INTO sensors VALUES (1,'portland_sensor',45.5,-122.65);"""
-    
-    #try: 
-        #db_cursor.execute(drop_sensors)
-    #except psycopg2.errors.UndefinedTable:
-        #print("table sensors does not exist")
-    #try:
-        #db_cursor.execute(drop_sensor_data)
-    #except psycopg2.errors.UndefinedTable:
-        #print("table sensors data does not exist")
-    #db_cursor.execute(create_sensors)
-    #db_cursor.execute(create_data)
-    #db_cursor.execute(create_sensor)
-    #print(db.info)
-    #db.close()
-
 def get_date_range(before_months: int | None, after_months: int | None)->tuple[datetime.date,datetime.date,datetime.date]:
     if before_months is None:
         before_months = 6
@@ -470,7 +304,6 @@ def get_date_range(before_months: int | None, after_months: int | None)->tuple[d
     after: datetime.date = today + relativedelta.relativedelta(months=after_months)
 
     return (before,today,after)
-    #return (before.timetuple().tm_yday,today.timetuple().tm_yday,after.timetuple().tm_yday)
 
 def pretty_display(list_of_lists_of_lists: list[list[list[None]]]):
     for day,lists_of_lists in enumerate(list_of_lists_of_lists):
@@ -478,17 +311,133 @@ def pretty_display(list_of_lists_of_lists: list[list[list[None]]]):
         for fourth,lists in enumerate(lists_of_lists):
             print(f"\tCapture {fourth + 1} : {lists}")
 
+def addDotCsv(filename: str)->str:
+    if ".csv" not in filename:
+        filename += ".csv"
+    return filename
+
+def help()->None:
+    msg=\
+"""
+Generates a range of fake data from a specified number of sensors, over a specified time period
+Usage:      python3     script.py   [options]   <args>
+  args are (in this order):
+    beforeMonths                    Number of months before current date to model
+    afterMonths                     Number of months after current date to model
+    sensorCount                     Number of sensors to model
+  options are (options may appear in any order):
+    -h, --help                      Displays this message and exits
+    -p, --print                     Display the sensor output after generation
+    -d, --debug                     Displays every option / argument deciphered
+    -o, --output=  filename         Specify file to send csv data, defaults to file.csv
+    -n, --no-file                   Specify that file
+"""
+    print(msg)
+
+
 def main()->None:
     """main acts as menu for generating a backlog, very baseline stuff
     """
-    before_months = after_months = 1
-    sensors_count = 2
     global sensors
+    filename = "file.csv"
+
+    HELP_L = "--help"
+    HELP_S = "-h"
+    PRINT_L= "--print"
+    PRINT_S= "-p"
+    OUT_L  = "--output"
+    OUT_S  = "-o"
+    DEBUG_S= "-d"
+    DEBUG_L= "--debug"
+    NFILE_S= "-n"
+    NFILE_L= "--no-file"
+    #optionBools = [False,False,False]
+    optionDict = {
+        "help" : False,
+        "print": False,
+        "debug": False,
+        "output": False,
+        "no-file": False
+    }
+    argsList = [3,3,3]
+    argsDict = {
+        "before" : 3,
+        "after"  : 3,
+        "sensors": 3
+    }
+    
+    exit = False
+
+
+    args = sys.argv[1:]
+    option = "hpdno:"
+    alt_options = ["help", "print", "output", "debug", "no-file"]
+    try: 
+        cmd_options,cmd_arguments = getopt.getopt(args,option,alt_options)
+        for current_opt, current_value in cmd_options:
+            if current_opt in (HELP_S, HELP_L):     #HELP
+                optionDict.update({"help" : True})
+                help()
+                exit = True
+            elif current_opt in (PRINT_S, PRINT_L): #PRINT
+                optionDict.update({"print" : True})
+            elif current_opt in (OUT_S, OUT_L):
+                optionDict.update({"output" : True})
+                filename=addDotCsv(current_value)   #
+            elif current_opt in (DEBUG_S, DEBUG_L):
+                optionDict.update({"debug" : True})
+            elif current_opt in (NFILE_S, NFILE_L):
+                optionDict.update({"no-file" : True})
+
+            if exit is True:
+                sys.exit(0)
+        if optionDict.get("debug"):
+            for option,values in optionDict.items():
+                print(f'Option {option} = {values}')
+            print(f'Argument List (beforeMonths, afterMonths, sensors)\n\tList: [{cmd_arguments}]')
+
+        if not optionDict.get("no-file") and optionDict.get("output"):
+            print(f'Note that options --output && --no-file chosen, running without outputting...')
+
+        arg_count = len(cmd_arguments)
+        if arg_count != 3:
+            if arg_count < 3:
+                print(f'Note, only {arg_count} arguments given, defaults to 3 months before, after, and sensors with default output to file.csv')
+            if arg_count > 3:
+                assert False, f"Too many args given, expect 3 but {arg_count} given..."
+
+        for count,value in enumerate(cmd_arguments):
+            argsList[count] = int(value)
+        count = 0
+        for entry in argsDict:
+            argsDict.update({f"{entry}" : argsList[count]})
+            count += 1
+            
+    except getopt.error as error:
+        print(str(error))
+        help()
+        sys.exit(0)
+    except TypeError as error:
+        print("Invalid Argument Given")
+        print(str(error))
+        help()
+        sys.exit(0)
+        
+    before_months = argsList[0]
+    after_months  = argsList[1]
+    sensors_count = argsList[2]
     dates = get_date_range(before_months, after_months)
     generate_data(before=dates[0], today=dates[1], after=dates[2], number_sensors=sensors_count)
-    for sensor in sensors:
-        print(sensor)
-    create_csv(sensors, 'file.csv')
+    if optionDict.get("debug"):
+        sensor_count = len(sensors)
+        print(f"PRINTING SENSORS, COUNT: {sensor_count}")
+        for sensor in range(sensor_count):
+            print(f'    Sensor {sensor} : {sensors[sensor].get_name()}')
+    if optionDict.get("print"):
+        for sensor in sensors:
+            print(sensor)
+    if not optionDict.get("no-file"):
+        create_csv(sensors, filename) 
 
 if __name__ == "__main__":
     main()

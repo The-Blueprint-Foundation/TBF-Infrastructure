@@ -1,3 +1,9 @@
 #Just in case added .venv here for some reason
 .venv/
 ../.venv/
+#Arbitrary ignore
+*.ignore
+#Generated, not saved!
+*.csv
+#I promise I can use the terminal...
+.vscode/
