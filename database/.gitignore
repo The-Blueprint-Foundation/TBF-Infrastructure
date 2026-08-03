@@ -7,3 +7,5 @@
 *.csv
 #I promise I can use the terminal...
 .vscode/
+#code workspace
+*.code-workspace

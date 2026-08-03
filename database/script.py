@@ -1,8 +1,8 @@
-import datetime, random, csv, copy, sys, getopt
+import datetime, random, csv, sys, getopt 
 from typing import override
 from dateutil import relativedelta
-from random_word import RandomWords
-from texttable import Texttable
+from random_word import RandomWords  # pyright: ignore[reportMissingTypeStubs]
+from texttable import Texttable  # pyright: ignore[reportMissingTypeStubs]
 """ Simple Python script for generating an aqi backlog given a baseline """
 placeholder: bool = True
 
@@ -21,6 +21,17 @@ Gresham_Coordinate_Range = [
    #         print(f"\tCapture {fourth + 1} : {lists}")
 
 class fake_sensor():
+    """fake_sensor class to hold the information for a fake sensor
+
+    Contains a sensor with name, city, latitude, longitude, start/ end dates, and a table of data information.
+    Attributes:
+        sensor_name (str)                       : Name of sensor, for identification purposes
+        sensor_city (str)                       : City for quick identification of latitude/longitude
+        sensor_latt (float)                     : Longitude location of sensor
+        sensor_long (float)                     : Latitude location of sensor
+        table       (Texttable)                 : Table of information, in easily print/convertible format!
+        data        (list[list[list[float]]])   : Raw information containing readings for every hour
+    """    
     sensor_name: str
     sensor_city: str
     sensor_latt: float
@@ -30,7 +41,7 @@ class fake_sensor():
     #sensor_location_name: tuple[str,str,float,float]
     data: list[list[list[float]]]
     data_dict : list[dict[str,str | float]]
-    data_row = []
+    data_row:list[list] = []
     
     date_start: datetime.datetime
     date_end  : datetime.datetime
@@ -54,15 +65,15 @@ class fake_sensor():
         self.date_end = datetime.datetime.combine(end,placeholder)
         self.dates_length = length
         self.table = Texttable().header(["DATE", "PM1", "PM2.5", "PM10", "TEMPERATURE (F)", "HUMIDITY"])
-        self._set_data_rows()
+        self.__set_data_rows()
 
-    def _set_data_rows(self)->None:
+    def __set_data_rows(self)->None:
         self.data_row = [[None] * 24 * 6] * self.dates_length
         current_date = self.date_start
         #EXAMPLE: 
         # | 01-01-2000 11AM | 1.2 | 1.3 | 1.4 | 1.7 | 1.8 |
-        for days, lists_of_lists in enumerate(self.data):
-            for hours,lists in enumerate(lists_of_lists):
+        for _days, lists_of_lists in enumerate(self.data):
+            for _hours,lists in enumerate(lists_of_lists):
                 date    = current_date
                 pm1     = lists[0]
                 pm2_5   = lists[1]
@@ -96,7 +107,7 @@ class fake_sensor():
         try:
             data = self.data[day]
         except IndexError as error:
-            error.add_note(f"Could not retreive day {(self.date_start + datetime.timedelta(days=day)).strftime(self.id_date_str)} from sensor {self.sensor_name}, ")
+            error.add_note(f"Could not retrieve day {(self.date_start + datetime.timedelta(days=day)).strftime(self.id_date_str)} from sensor {self.sensor_name}, ")
             raise(error)
         return data
 
@@ -129,14 +140,19 @@ def get_real_sensor_data(sensor_name: str)->list[list[float]]:
     :param str sensor_name: name of sensor to grab from
     """
     #do some magic...
-    data: list[list[float]]
-    data = [] #UPDATE
-    if placeholder:
-        baseline = [20.0, 20.0, 5.0, 50.0, 70.0]
+    sensor_info: list[list[float]] = []
+    def populate_fake_hour_floats(baseline: list[float])->None:
         for num in range(24):
             flt: float = num / 10
-            data.append([x + flt for x in baseline])
-    return data
+            sensor_info.append([x + flt for x in baseline])
+    if placeholder:
+        baseline = [20.0, 20.0, 5.0, 50.0, 70.0]
+        populate_fake_hour_floats(baseline)
+        
+    else:
+        #get_data
+        raise NotImplementedError(f"Note getting the data from sensor is not implemented, therefore {sensor_name} cannot be accessed!")
+    return sensor_info
 
 def get_fake_sensor_loc(name: str)->tuple[str,str,float,float]:
     place                               = ""
@@ -222,11 +238,18 @@ def generate_data_days(name_loc, today, today_data, start, end, total_size, swap
     current_day    = today
     current_values = today_data[23]
     day_index      = 0
-    sensor_days = [[[None] * 5] * 24] * total_size
+    sensor_days: list[list] = [[[None] * 5] * 24] * total_size
     # DAYS
     # -> TIMES
     #   -> VALUES
-    get_values = lambda prev_values, month : [get_pm(prev_values[0], "pm1"),get_pm(prev_values[1],"pm2.5"),get_pm(prev_values[2], "pm10"), get_temp(prev_values[3], month - 1), get_humidity(prev_values[4])]
+    def get_values(prev_values: list[float], month: int)->list[float]:
+        pm1 = get_pm(prev_values[0], "pm1")
+        pm2_5 = get_pm(prev_values[1], "pm25")
+        pm10 = get_pm(prev_values[2], "pm10")
+        temp = get_temp(prev_values[3], month)
+        humidity = get_humidity(prev_values[4])
+        return [pm1,pm2_5,pm10,temp,humidity]
+
     for day in range(total_size):
         today_list = []
         if day < swap_point:
@@ -240,7 +263,7 @@ def generate_data_days(name_loc, today, today_data, start, end, total_size, swap
             day_index = day
         else: # day == swapping_point
             current_day = today
-            sensor_days[swap_point] = [x[:] for x in today_data]  # pyright: ignore[reportArgumentType, reportCallIssue]
+            sensor_days[swap_point] = [x[:] for x in today_data]  
             continue
 
         for twenty_fourth in range(24):
