@@ -6,6 +6,7 @@ from texttable import Texttable  # pyright: ignore[reportMissingTypeStubs]
 """ Simple Python script for generating an aqi backlog given a baseline """
 placeholder: bool = True
 
+#Coordinate range of portland and gresham areas
 Portland_Coordinate_Range = [
     (45.550_000, -122.550_000), #NW OF EAST
     (45.470_000, -122.505_000)  #SE OF EAST
@@ -15,22 +16,28 @@ Gresham_Coordinate_Range = [
     (45.480_000, -122.390_000)  #SE OF GRESHAM
 ]
 
-   # for day,lists_of_lists in enumerate(list_of_lists_of_lists):
-   #     print(f"DAY: {day}")
-   #     for fourth,lists in enumerate(lists_of_lists):
-   #         print(f"\tCapture {fourth + 1} : {lists}")
 
 class fake_sensor():
     """fake_sensor class to hold the information for a fake sensor
 
     Contains a sensor with name, city, latitude, longitude, start/ end dates, and a table of data information.
     Attributes:
-        sensor_name (str)                       : Name of sensor, for identification purposes
-        sensor_city (str)                       : City for quick identification of latitude/longitude
-        sensor_latt (float)                     : Longitude location of sensor
-        sensor_long (float)                     : Latitude location of sensor
-        table       (Texttable)                 : Table of information, in easily print/convertible format!
-        data        (list[list[list[float]]])   : Raw information containing readings for every hour
+        sensor_name     (str)                           : Name of sensor, for identification purposes
+        sensor_city     (str)                           : City for quick identification of latitude/longitude
+        sensor_latt     (float)                         : Longitude location of sensor
+        sensor_long     (float)                         : Latitude location of sensor
+        table           (Texttable)                     : Table of information, in easily print/convertible format!
+        data            (list[list[list[float]]])       : Raw information containing readings for every hour
+        data_dict       (list[dict[str,str | float]])   : List of rows as a dictionary
+        data_row        (list[list])                    : List of lists of row data
+        date_start      (datetime)                      : Datetime class that contains the date of which sensor 'starts'
+        date_end        (datetime)                      : Datetime class that contains the date of which sensor 'ends'
+        dates_length    (int)                           : Integer count of day difference between start and end date
+    Constants:
+        date_table_str  : "%d-%m-%y %I%p"               : String expression for datetime representation in table
+        date_str        : "%x"                          : String expression for datetime representation for date specifically
+        time_str        : "%X%:z"                       : String expression for datetime representation for time specifically
+        id_date_str     : "%d-%m-%y (%j)"               : String expression for datetime representation for date/time, for csv table
     """    
     sensor_name: str
     sensor_city: str
@@ -38,7 +45,6 @@ class fake_sensor():
     sensor_long: float
     table: Texttable
     
-    #sensor_location_name: tuple[str,str,float,float]
     data: list[list[list[float]]]
     data_dict : list[dict[str,str | float]]
     data_row:list[list] = []
@@ -50,9 +56,19 @@ class fake_sensor():
     date_str = '%x'
     time_str = '%X%:z'
     id_date_str = '%d-%m-%y (%j)'
-    def __init__(self, loc, data, start, end, length) -> None:
+    def __init__(self, loc : tuple[str,str,float,float], data : list[list[list[float]]], start : datetime.date, end: datetime.date, length: int) -> None:
+        """__init__ Create sensor given generated data
+
+        Creates a fake sensor given location, time, and reading data
+
+        :param tuple[str,str,float,float] loc: tuple containing the name of the sensor, city where sensor is, latitude of sensor, and longitude of sensor
+        :param list[list[list[float]]] data: list of lists of lists of floats containing all sensor data -> [days [hours [individual readings]]]
+        :param datetime.datetime start: datetime class of start date of readings
+        :param datetime.datetime end: datetime class of end date of readings
+        :param int length: timespan of given dates, as an integer
+        """
         random.seed()
-        placeholder = datetime.time(hour=0,minute=0)
+        start_of_day = datetime.time(hour=0,minute=0)
         self.sensor_name = loc[0]
         self.sensor_city = loc[1]
         self.sensor_latt = loc[2]
@@ -61,13 +77,17 @@ class fake_sensor():
         self.data_dict = []
 
 
-        self.date_start = datetime.datetime.combine(start,placeholder)
-        self.date_end = datetime.datetime.combine(end,placeholder)
+        self.date_start = datetime.datetime.combine(start,start_of_day)
+        self.date_end = datetime.datetime.combine(end,start_of_day)
         self.dates_length = length
         self.table = Texttable().header(["DATE", "PM1", "PM2.5", "PM10", "TEMPERATURE (F)", "HUMIDITY"])
         self.__set_data_rows()
 
     def __set_data_rows(self)->None:
+        """__set_data_rows sets data from attributes into a texttable index of information
+
+        Uses list of all information to generate a table row by row, iterating the date hour by hour in line with data
+        """
         self.data_row = [[None] * 24 * 6] * self.dates_length
         current_date = self.date_start
         #EXAMPLE: 
@@ -97,12 +117,22 @@ class fake_sensor():
                 current_date += datetime.timedelta(hours=1)
 
     def get_dict_str(self)->str:
+        """ :return str: returns dictionary as string representation
+        """
         return self.data_dict.__str__()
 
     def get_table(self)->str | None:
+        """ :return str: returns generated texttable as string using draw() function"""
         return self.table.draw()
 
     def get_day(self, day: int)->list[list[float]]:
+        """get_day gets day of sensor readings
+
+        gets day of sensor readings (24 count hour readings)
+
+        :param int day: day as index of day list
+        :return list[list[float]]: returns list of hourly readings at specified date
+        """
         data : list[list[float]] = []
         try:
             data = self.data[day]
@@ -112,10 +142,14 @@ class fake_sensor():
         return data
 
     def get_name(self)->str:
+        """ :return str: returns sensor name """
         return self.sensor_name
 
     @override
-    def __str__(self):
+    def __str__(self)->str:
+        """ Utilizes texttable module to print a small card containing location / id information of sensor, and table containing all data
+            :return str: returns string representation of card + table
+        """
         line=\
         f"""
             /------------------------\\
@@ -132,6 +166,7 @@ class fake_sensor():
             
         return line + table_str
 
+#global list of sensors, used for efficiency sake
 sensors: list[fake_sensor]
 
 def get_real_sensor_data(sensor_name: str)->list[list[float]]:
@@ -155,6 +190,13 @@ def get_real_sensor_data(sensor_name: str)->list[list[float]]:
     return sensor_info
 
 def get_fake_sensor_loc(name: str)->tuple[str,str,float,float]:
+    """get_fake_sensor_loc Generates fake location data and returns as tuple
+
+    Takes name of sensor and generates fake latitude, longitude, and city in service of returning a tuple containing all sensor id information
+
+    :param str name: Name of sensor to include in tuple
+    :return tuple[str,str,float,float]: tuple consisting of name,city,latitude,longitude of fake sensor
+    """
     place                               = ""
     ranges: list[tuple[float,float]]    = []
     long                                = 0.0
@@ -178,6 +220,14 @@ def get_fake_sensor_loc(name: str)->tuple[str,str,float,float]:
     return (name,place,latt,long)
 
 def get_temp(previous_value: float, month: int)->float:
+    """get_temp Generates temperature reading to be given back to sensor
+
+    Generates temperature reading given previous value and month 'taken' to simulate believable variation in data
+    
+    :param float previous_value: Previous temperature generated, base case is placeholder / actually pulled data
+    :param int month: Month as integer from 0-11
+    :return float: Returns temperature (in Fahrenheit!)
+    """
     MAX = 0
     MIN = 1
 
@@ -202,6 +252,17 @@ def get_temp(previous_value: float, month: int)->float:
     return min(max(new_temp,TEMPS_MAX_MIN[month][MIN]),TEMPS_MAX_MIN[month][MAX])
 
 def get_pm(previous_value: float, pm_type: str | int)->float:
+    """get_pm Generates fake sensor information for pm1, pm2.5 and pm10 readings
+
+    Generates fake sensor data given previous pm value and the type of pm being faked to generate a believable variation in 
+    data of pm readings
+    
+    :param float previous_value: Previous pm value generated, base case being placeholder / actually pulled pm value
+    :param str | int pm_type: Type of pm (pm1,pm2.5, or pm10) as either string literal or int corresponding to list of pms
+    :raises ValueError: Raises value error if given invalid string
+    :raises TypeError: Raises type error if not string or int, since cannot gather pm info without specified type
+    :return float: Returns newly generated pm value
+    """
     #Based on https://www.epa.gov/air-trends/particulate-matter-pm25-trends for northwest
     MAX_PM1  = 38.0
     MAX_PM25 = 30.7
@@ -229,12 +290,32 @@ def get_pm(previous_value: float, pm_type: str | int)->float:
     return min(max(previous_value + random.uniform(-0.125,0.125), MIN), max_pm)
 
 def get_humidity(previous_value: float)->float:
+    """get_humidity Generates fake humidity reading 
+
+    Generates fake humidity reading given previous humidity values
+
+    :param float previous_value: Previous humidity reading, base case being placeholder / actually pulled humidity
+    :return float: Returns newly generated humidity reading
+    """
     #Based on https://world-weather.info/forecast/usa/portland_2/2025/
     MAX_HUMIDITY = 84.0
     MIN_HUMIDITY = 58.0 
     return min(max(previous_value + random.uniform(-0.25, 0.25), MIN_HUMIDITY), MAX_HUMIDITY)
 
-def generate_data_days(name_loc, today, today_data, start, end, total_size, swap_point)->fake_sensor:
+def generate_data_days(name_loc ,today: datetime.date, today_data: list[list[float]], start: datetime.date, end: datetime.date, total_size: int, swap_point: int)->fake_sensor:
+    """generate_data_days collates all the given data to return a sensor with fake data
+
+    Uses given sensor_id and date range to generate & return a new fake sensor class containing all relevant data
+
+    :param tuple[str,str,float,float] name_loc: Tuple containing name,city,latitude, and longitude of sensor
+    :param datetime.date today: Date of today, the middle point
+    :param list[list[float]] today_data: list of hourly readings of today either placeholder or actually pulled
+    :param datetime.date start: Start date of sensor readings
+    :param datetime.date end: End date of sensor readings
+    :param int total_size: Total number of days to generate
+    :param int swap_point: Halfway point at which to swap from generating backward to generating forward
+    :return fake_sensor: Returns fake sensor class that holds all relevant data
+    """
     current_day    = today
     current_values = today_data[23]
     day_index      = 0
@@ -276,9 +357,17 @@ def generate_data_days(name_loc, today, today_data, start, end, total_size, swap
             sensor_days[day_index][i] = values[:]
     return fake_sensor(loc=name_loc, data=sensor_days, start=start,end=end,length=total_size)
 
-def generate_data(before: datetime.date, today: datetime.date, after: datetime.date, number_sensors: int):
-    """generate_data generate data based on trends within historical nw data
-        Will break if range exceeds current year boundary, since relies on day of the year for calculation
+def generate_data(before: datetime.date, today: datetime.date, after: datetime.date, number_sensors: int)->None:
+    """generate_data Generates all sensors
+
+    Generates full range of sensors given date range and number of fake sensors to create
+
+    :param datetime.date before: Earliest date of sensor readings
+    :param datetime.date today: Date of sensor readings from which rest propagate (either forwards or backwards)
+    :param datetime.date after: Latest date of sensor readings
+    :param int number_sensors: Number of sensors to generate given as an integer
+
+    Appends to global sensor list rather than return list of classes
     """
     random.seed()
     word = RandomWords()
@@ -308,6 +397,13 @@ def generate_data(before: datetime.date, today: datetime.date, after: datetime.d
         sensors.append(generate_data_days(name_loc=sensor_names[num], today=today, today_data=today_data, start=before, end=after, total_size=total_size, swap_point=swapping_point))
 
 def create_csv(sensors: list[fake_sensor], filename: str):
+    """create_csv Creates csv of sensor data
+
+    Creates and outputs a new csv file of specified name from list of generated fake sensors
+
+    :param list[fake_sensor] sensors: List of fake sensors from which to write csv data
+    :param str filename: Name of file to write csv data
+    """
     #Thank you https://www.geeksforgeeks.org/python/working-csv-files-python/
     titles = ["Sensor Name", "Region", "Latitude", "Longitude", "Date", "Time", "PM1", "PM2.5", "PM10", "Temperature", "Humidity"]
     with open(filename, 'w') as file:
@@ -318,6 +414,14 @@ def create_csv(sensors: list[fake_sensor], filename: str):
     return
 
 def get_date_range(before_months: int | None, after_months: int | None)->tuple[datetime.date,datetime.date,datetime.date]:
+    """get_date_range Gets date range from integer count of months
+
+    Gets range of dates given number of previous / subsequent months as integer number
+
+    :param int | None before_months: Number of months to generate back
+    :param int | None after_months: Number of months to generate forward
+    :return tuple[datetime.date,datetime.date,datetime.date]: tuple consisting of earliest,today, and latest dates
+    """
     if before_months is None:
         before_months = 6
     if after_months is None:
@@ -329,37 +433,50 @@ def get_date_range(before_months: int | None, after_months: int | None)->tuple[d
     return (before,today,after)
 
 def pretty_display(list_of_lists_of_lists: list[list[list[None]]]):
+    """pretty_display Quick and painless view of all data
+
+    Given raw data of sensor information, prints a quick readable list of information. For debugging purposes
+    :param list[list[list[None]]] list_of_lists_of_lists: Raw data of sensor information
+    """
     for day,lists_of_lists in enumerate(list_of_lists_of_lists):
         print(f"DAY: {day}")
         for fourth,lists in enumerate(lists_of_lists):
             print(f"\tCapture {fourth + 1} : {lists}")
 
 def addDotCsv(filename: str)->str:
+    """addDotCsv Adds .csv to filename if not added
+
+    Adds .csv to filename if not present, returns newly verified filename
+
+    :param str filename: Filename to verify
+    :return str: Returns name of file plus .csv, ensuring an actual readable file
+    """
     if ".csv" not in filename:
         filename += ".csv"
     return filename
 
 def help()->None:
+    """help Contains multi-line help string that prints
+    """
     msg=\
-"""
-Generates a range of fake data from a specified number of sensors, over a specified time period
-Usage:      python3     script.py   [options]   <args>
-  args are (in this order):
-    beforeMonths                    Number of months before current date to model
-    afterMonths                     Number of months after current date to model
-    sensorCount                     Number of sensors to model
-  options are (options may appear in any order):
-    -h, --help                      Displays this message and exits
-    -p, --print                     Display the sensor output after generation
-    -d, --debug                     Displays every option / argument deciphered
-    -o, --output=  filename         Specify file to send csv data, defaults to file.csv
-    -n, --no-file                   Specify that file
-"""
+    """
+    Generates a range of fake data from a specified number of sensors, over a specified time period
+    Usage:      python3     script.py   [options]   <args>
+    args are (in this order):
+        beforeMonths                    Number of months before current date to model
+        afterMonths                     Number of months after current date to model
+        sensorCount                     Number of sensors to model
+    options are (options may appear in any order):
+        -h, --help                      Displays this message and exits
+        -p, --print                     Display the sensor output after generation
+        -d, --debug                     Displays every option / argument deciphered
+        -o, --output=  filename         Specify file to send csv data, defaults to file.csv
+        -n, --no-file                   Specify that file
+    """
     print(msg)
 
-
 def main()->None:
-    """main acts as menu for generating a backlog, very baseline stuff
+    """main acts as menu for generating a range of sensors & outputs to csv unless specified
     """
     global sensors
     filename = "file.csv"
@@ -374,7 +491,6 @@ def main()->None:
     DEBUG_L= "--debug"
     NFILE_S= "-n"
     NFILE_L= "--no-file"
-    #optionBools = [False,False,False]
     optionDict = {
         "help" : False,
         "print": False,
@@ -419,8 +535,8 @@ def main()->None:
                 print(f'Option {option} = {values}')
             print(f'Argument List (beforeMonths, afterMonths, sensors)\n\tList: [{cmd_arguments}]')
 
-        if not optionDict.get("no-file") and optionDict.get("output"):
-            print(f'Note that options --output && --no-file chosen, running without outputting...')
+        if optionDict.get("no-file") and optionDict.get("output"):
+            print(f'Note that options --output && --no-file chosen, ignoring no file...')
 
         arg_count = len(cmd_arguments)
         if arg_count != 3:
@@ -456,6 +572,9 @@ def main()->None:
         print(f"PRINTING SENSORS, COUNT: {sensor_count}")
         for sensor in range(sensor_count):
             print(f'    Sensor {sensor} : {sensors[sensor].get_name()}')
+            print('---First four days---')
+            days: list[list[list]] = [sensors[sensor].get_day(0), sensors[sensor].get_day(1), sensors[sensor].get_day(2), sensors[sensor].get_day(3)]
+            pretty_display(days)
     if optionDict.get("print"):
         for sensor in sensors:
             print(sensor)
