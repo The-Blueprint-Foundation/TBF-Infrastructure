@@ -41,6 +41,7 @@
     service_description: MQTT subscriber service
     service_working_dir: "{{ subscriber_dir }}"
     service_env_file: "{{ subscriber_dir }}/.env"
+    service_env_template: subscriber.env.j2
     service_venv: "{{ subscriber_venv }}"
     service_script: subscriber.py
 
@@ -55,9 +56,27 @@
 
 # ── Publishers ─────────────────────────────────────────────────────────────────
 # Add an include_tasks block per publisher as new integrations are added.
-# Each one reuses setup_service.yml with its own variable set.
+# Each publisher:
+#   1. Defines its path variables in defaults/main.yml
+#   2. Has its secrets added to mqtt.tf metadata and variables.tf
+#   3. Has a dedicated .env template in templates/ that renders those secrets
+#   4. Gets an include_tasks block below referencing setup_service.yml
 #
-# Example for a PurpleAir publisher:
+# Example — PurpleAir publisher:
+#
+# - name: Fetch PurpleAir API key from instance metadata
+#   ansible.builtin.command:
+#     cmd: >
+#       curl -sf -H "Metadata-Flavor: Google"
+#       http://metadata.google.internal/computeMetadata/v1/instance/attributes/purpleair-api-key
+#   register: purpleair_api_key_result
+#   changed_when: false
+#   no_log: true
+#
+# - name: Set PurpleAir API key fact
+#   ansible.builtin.set_fact:
+#     purpleair_api_key: "{{ purpleair_api_key_result.stdout }}"
+#   no_log: true
 #
 # - name: Set up PurpleAir publisher service
 #   ansible.builtin.include_tasks:
@@ -65,14 +84,25 @@
 #   vars:
 #     service_name: purpleair-publisher
 #     service_description: PurpleAir air quality data publisher
-#     service_working_dir: "{{ publishers_dir }}/purpleair"
-#     service_env_file: "{{ publishers_dir }}/purpleair/.env"
-#     service_venv: "{{ publishers_dir }}/purpleair/.venv"
+#     service_working_dir: "{{ purpleair_dir }}"
+#     service_env_file: "{{ purpleair_dir }}/.env"
+#     service_env_template: purpleair.env.j2
+#     service_venv: "{{ purpleair_venv }}"
 #     service_script: publisher.py
-#
-# Note: It may be cleaner to replace the repetitious string "{{ publishers_dir }}/__publisher-name__" 
-# with a publisher-specific variable in `defaults/main.yml`. See the "QuantAQ"
-# Publisher below as an example.
+
+- name: Fetch QuantAQ API key from instance metadata
+  ansible.builtin.command:
+    cmd: >
+      curl -sf -H "Metadata-Flavor: Google"
+      http://metadata.google.internal/computeMetadata/v1/instance/attributes/quantaq-api-key
+  register: quantaq_api_key_result
+  changed_when: false
+  no_log: true
+
+- name: Set QuantAQ API key fact
+  ansible.builtin.set_fact:
+    quantaq_api_key: "{{ quantaq_api_key_result.stdout }}"
+  no_log: true
 
 - name: Set up QuantAQ publisher service
   ansible.builtin.include_tasks:
@@ -82,5 +112,6 @@
     service_description: QuantAQ air quality data publisher
     service_working_dir: "{{ quantaq_dir }}"
     service_env_file: "{{ quantaq_dir }}/.env"
+    service_env_template: quantaq.env.j2
     service_venv: "{{ quantaq_venv }}"
     service_script: publisher.py

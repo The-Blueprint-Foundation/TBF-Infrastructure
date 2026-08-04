@@ -36,52 +36,64 @@
     - name: Subscriber | Check if requirements.txt exists
       ansible.builtin.stat:
         path: "{{ subscriber_dir }}/requirements.txt"
-      register: requirements_file
+      register: subscriber_requirements
 
-    - name: Subscriber | Install subscriber dependencies
+    - name: Subscriber | Install dependencies
       ansible.builtin.pip:
         requirements: "{{ subscriber_dir }}/requirements.txt"
         virtualenv: "{{ subscriber_venv }}"
         state: present
       become: true
-      when: git_result.changed and requirements_file.stat.exists
+      when: git_result.changed and subscriber_requirements.stat.exists
 
-    - name: Subscriber | Restart subscriber service if code changed
+    - name: Subscriber | Check if script exists
+      ansible.builtin.stat:
+        path: "{{ subscriber_dir }}/subscriber.py"
+      register: subscriber_script
+
+    - name: Subscriber | Restart service if code changed
       ansible.builtin.systemd:
         name: mqtt-subscriber
         state: restarted
       become: true
-      when: git_result.changed
+      when: git_result.changed and subscriber_script.stat.exists
 
-    # ── Publishers ─────────────────────────────────────────────────────────────
-    # Add a block per publisher as new integrations are added.
-    # Each block installs its own requirements.txt and restarts its own service.
+    # ── Producers ─────────────────────────────────────────────────────────────
+    # Add a block per producer as new integrations are added.
+    # Follow the pattern below: stat guard on requirements.txt and script,
+    # then pip install and service restart guarded by both checks.
     #
-    # Example for a PurpleAir publisher:
-    # - name: Check if requirements.txt exists
+    # Example — PurpleAir producer:
+    #
+    # - name: Check if PurpleAir requirements.txt exists
     #   ansible.builtin.stat:
-    #     path: "{{ repo_dir }}/publishers/purupleair/requirements.txt"
-    #   register: requirements_file
+    #     path: "{{ purpleair_dir }}/requirements.txt"
+    #   register: purpleair_requirements
     #
-    # - name: Install PurpleAir publisher dependencies
+    # - name: Install PurpleAir producer dependencies
     #   ansible.builtin.pip:
-    #     requirements: "{{ repo_dir }}/publishers/purpleair/requirements.txt"
-    #     virtualenv: "{{ repo_dir }}/publishers/purpleair/.venv"
+    #     requirements: "{{ purpleair_dir }}/requirements.txt"
+    #     virtualenv: "{{ purpleair_venv }}"
     #     state: present
     #   become: true
-    #   when: git_result.changed
+    #   when: git_result.changed and purpleair_requirements.stat.exists
     #
-    # - name: Restart PurpleAir publisher service if code changed
+    # - name: Check if PurpleAir producer script exists
+    #   ansible.builtin.stat:
+    #     path: "{{ purpleair_dir }}/producer.py"
+    #   register: purpleair_script
+    #
+    # - name: Restart PurpleAir producer service if code changed
     #   ansible.builtin.systemd:
-    #     name: purpleair-publisher
+    #     name: purpleair-producer
     #     state: restarted
     #   become: true
-    #   when: git_result.changed
+    #   when: git_result.changed and purpleair_script.stat.exists
 
     - name: QuantAQ Publisher | Check if requirements.txt exists
       ansible.builtin.stat:
         path: "{{ quantaq_dir }}/requirements.txt"
-      register: requirements_file
+      register: quantaq_requirements
 
     - name: QuantAQ Publisher | Install QuantAQ producer dependencies
       ansible.builtin.pip:
@@ -89,14 +101,19 @@
         virtualenv: "{{ quantaq_venv }}"
         state: present
       become: true
-      when: git_result.changed and requirements_file.stat.exists
+      when: git_result.changed and quantaq_requirements.stat.exists
 
+    - name: Check if PurpleAir producer script exists
+      ansible.builtin.stat:
+        path: "{{ quantaq_dir }}/producer.py"
+      register: quantaq_script
+    
     - name: QuantAQ Publisher | Restart QuantAQ producer service if code changed
       ansible.builtin.systemd:
         name: quantaq-producer
         state: restarted
       become: true
-      when: git_result.changed
+      when: git_result.changed and quantaq_script.stat.exists
 
 # ── FastAPI VM ────────────────────────────────────────────────────────────────
 # Uncomment when the FastAPI role and repo are ready.
@@ -117,7 +134,7 @@
 #         force: true
 #       become: true
 #       register: git_result
-# 
+#
 #     - name: Check if requirements.txt exists
 #       ansible.builtin.stat:
 #         path: "{{ fastapi_app_dir }}/requirements.txt"
@@ -131,9 +148,14 @@
 #       become: true
 #       when: git_result.changed and requirements_file.stat.exists
 #
+#     - name: Check if FastAPI script exists
+#       ansible.builtin.stat:
+#         path: "{{ fastapi_app_dir }}/main.py"
+#       register: fastapi_script
+#
 #     - name: Restart FastAPI service if code changed
 #       ansible.builtin.systemd:
 #         name: fastapi
 #         state: restarted
 #       become: true
-#       when: git_result.changed
+#       when: git_result.changed and fastapi_script.stat.exists

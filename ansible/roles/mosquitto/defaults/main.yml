@@ -7,12 +7,20 @@ mqtt_log_dest: /var/log/mosquitto/mosquitto.log
 
 # Root directory where the full monorepo is cloned.
 repo_dir: /opt/tbf-pipeline
+subscriber_dir: "{{ repo_dir }}/subscriber"
+publishers_dir: "{{ repo_dir }}/publishers"
 
 # Subscriber paths — point into the monorepo subdirectory.
-subscriber_dir: "{{ repo_dir }}/subscriber"
 subscriber_venv: "{{ subscriber_dir }}/.venv"
 
-publishers_dir: "{{ repo_dir }}/publishers"
+# ── Publisher paths ────────────────────────────────────────────────────────────
+# Add a block of path variables per publisher as new integrations are added.
+# These are referenced in tasks/main.yml and deploy.yml.
+#
+# Example — PurpleAir publisher:
+# purpleair_dir: "{{ publishers_dir }}/purpleair"
+# purpleair_venv: "{{ purpleair_dir }}/.venv"
+
 quantaq_dir: "{{ publishers_dir }}/quantaq"
 quantaq_venv: "{{ quantaq_dir }}/.venv"
 
