@@ -1,6 +1,33 @@
 ---
 # ansible/roles/mosquitto/tasks/main.yml
 
+# ── Fetch DB credentials from instance metadata ───────────────────────────
+
+- name: Fetch DB username from instance metadata
+  ansible.builtin.command:
+    cmd: >
+      curl -sf -H "Metadata-Flavor: Google"
+      http://metadata.google.internal/computeMetadata/v1/instance/attributes/db-user
+  register: db_user_result
+  changed_when: false
+
+- name: Set db_user fact
+  ansible.builtin.set_fact:
+    db_user: "{{ db_user_result.stdout }}"
+
+- name: Fetch DB password from instance metadata
+  ansible.builtin.command:
+    cmd: >
+      curl -sf -H "Metadata-Flavor: Google"
+      http://metadata.google.internal/computeMetadata/v1/instance/attributes/db-password
+  register: db_password_result
+  changed_when: false
+
+- name: Set db_password fact
+  ansible.builtin.set_fact:
+    db_password: "{{ db_password_result.stdout }}"
+  no_log: true
+
 # ── Mosquitto ─────────────────────────────────────────────────────────────────
 
 - name: Install Mosquitto and clients

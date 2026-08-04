@@ -1,0 +1,100 @@
+---
+# ansible/roles/fastapi/tasks/main.yml
+# Mirrors the structure of the mosquitto role — sets up the application
+# directory, venv, .env file, and systemd service unit.
+#
+# Note: Python package installation is absent here — dependencies are managed
+# by the repository's requirements.txt and installed during deployment via
+# deploy.yml.
+
+# ── Fetch API DB credentials from instance metadata ───────────────────────────
+# The FastAPI VM metadata contains only the API reader credentials.
+# Subscriber credentials are intentionally absent from this VM.
+
+- name: Fetch DB user from instance metadata
+  ansible.builtin.command:
+    cmd: >
+      curl -sf -H "Metadata-Flavor: Google"
+      http://metadata.google.internal/computeMetadata/v1/instance/attributes/db-user
+  register: api_db_user_result
+  changed_when: false
+
+- name: Set db_user fact
+  ansible.builtin.set_fact:
+    api_db_user: "{{ api_db_user_result.stdout }}"
+
+- name: Fetch DB password from instance metadata
+  ansible.builtin.command:
+    cmd: >
+      curl -sf -H "Metadata-Flavor: Google"
+      http://metadata.google.internal/computeMetadata/v1/instance/attributes/db-password
+  register: api_db_password_result
+  changed_when: false
+  no_log: true
+
+- name: Set db_password fact
+  ansible.builtin.set_fact:
+    api_db_password: "{{ api_db_password_result.stdout }}"
+  no_log: true
+
+# ── Application directory and venv ────────────────────────────────────────────
+
+- name: Create application directory
+  ansible.builtin.file:
+    path: "{{ fastapi_app_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Create Python virtual environment
+  ansible.builtin.command:
+    cmd: python3 -m venv {{ fastapi_venv }}
+    creates: "{{ fastapi_venv }}/bin/activate"
+  become: true
+
+- name: Upgrade pip in venv
+  ansible.builtin.pip:
+    name: pip
+    state: latest
+    virtualenv: "{{ fastapi_venv }}"
+  become: true
+
+# ── Environment file ──────────────────────────────────────────────────────────
+
+- name: Template FastAPI .env file
+  ansible.builtin.template:
+    src: fastapi.env.j2
+    dest: "{{ fastapi_app_dir }}/.env"
+    owner: root
+    group: root
+    mode: "0600"
+  become: true
+
+# ── systemd service ───────────────────────────────────────────────────────────
+
+- name: Check if application entrypoint exists
+  ansible.builtin.stat:
+    path: "{{ fastapi_app_dir }}/main.py"
+  register: fastapi_script
+
+- name: Template FastAPI systemd service unit
+  ansible.builtin.template:
+    src: fastapi.service.j2
+    dest: /etc/systemd/system/fastapi.service
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify:
+    - Reload systemd
+    - Restart fastapi
+
+- name: Enable FastAPI service
+  ansible.builtin.systemd:
+    name: fastapi
+    enabled: true
+    daemon_reload: true
+  become: true
+  when: fastapi_script.stat.exists

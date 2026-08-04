@@ -16,5 +16,5 @@ ansible_ssh_extra_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/
 # Since repositories are public, no authentication is required.
  
 pipeline_repo_url: "https://github.com/The-Blueprint-Foundation/TBF-Pipeline.git"
-fastapi_repo_url: "https://github.com/your-org/your-fastapi-repo"
+fastapi_repo_url: "https://github.com/The-Blueprint-Foundation/TBF-API.git"
 

@@ -7,8 +7,9 @@
 #   Deploy to all VMs:
 #     ansible-playbook -i inventory/ deploy.yml
 #
-#   Deploy to MQTT VM only:
+#   Deploy to a single VM:
 #     ansible-playbook -i inventory/ deploy.yml --limit mqtt
+#     ansible-playbook -i inventory/ deploy.yml --limit fastapi
 #
 #   Override the branch at runtime:
 #     ansible-playbook -i inventory/ deploy.yml -e "git_branch=feature/my-branch"
@@ -116,46 +117,42 @@
       when: git_result.changed and quantaq_script.stat.exists
 
 # ── FastAPI VM ────────────────────────────────────────────────────────────────
-# Uncomment when the FastAPI role and repo are ready.
 
-# - name: Deploy FastAPI application
-#   hosts: fastapi
-#   gather_facts: false
-#
-#   vars:
-#     git_branch: main
-#
-#   tasks:
-#     - name: Clone or pull latest FastAPI code
-#       ansible.builtin.git:
-#         repo: "{{ fastapi_repo_url }}"
-#         dest: "{{ fastapi_app_dir }}"
-#         version: "{{ git_branch }}"
-#         force: true
-#       become: true
-#       register: git_result
-#
-#     - name: Check if requirements.txt exists
-#       ansible.builtin.stat:
-#         path: "{{ fastapi_app_dir }}/requirements.txt"
-#       register: requirements_file
-#
-#     - name: Install FastAPI dependencies
-#       ansible.builtin.pip:
-#         requirements: "{{ fastapi_app_dir }}/requirements.txt"
-#         virtualenv: "{{ fastapi_venv }}"
-#         state: present
-#       become: true
-#       when: git_result.changed and requirements_file.stat.exists
-#
-#     - name: Check if FastAPI script exists
-#       ansible.builtin.stat:
-#         path: "{{ fastapi_app_dir }}/main.py"
-#       register: fastapi_script
-#
-#     - name: Restart FastAPI service if code changed
-#       ansible.builtin.systemd:
-#         name: fastapi
-#         state: restarted
-#       become: true
-#       when: git_result.changed and fastapi_script.stat.exists
+- name: Deploy FastAPI application
+  hosts: fastapi
+  gather_facts: false
+
+  vars:
+    git_branch: main
+
+  tasks:
+    - name: Clone or pull latest FastAPI code
+      ansible.builtin.git:
+        repo: "{{ fastapi_repo_url }}"
+        dest: "{{ fastapi_app_dir }}"
+        version: "{{ git_branch }}"
+        force: true
+      become: true
+      register: git_result
+
+    - name: Check if requirements.txt exists
+      ansible.builtin.stat:
+        path: "{{ fastapi_app_dir }}/requirements.txt"
+      register: fastapi_requirements_file
+    - name: Install FastAPI dependencies
+      ansible.builtin.pip:
+        requirements: "{{ fastapi_app_dir }}/requirements.txt"
+        virtualenv: "{{ fastapi_venv }}"
+        state: present
+      become: true
+      when: git_result.changed and fastapi_requirements_file.stat.exists
+    - name: Check if FastAPI entrypoint exists
+      ansible.builtin.stat:
+        path: "{{ fastapi_app_dir }}/main.py"
+      register: fastapi_script
+    - name: Restart FastAPI service if code changed
+      ansible.builtin.systemd:
+        name: fastapi
+        state: restarted
+      become: true
+      when: git_result.changed and fastapi_script.stat.exists
