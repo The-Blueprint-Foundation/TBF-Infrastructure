@@ -22,24 +22,29 @@ class fake_sensor():
 
     Contains a sensor with name, city, latitude, longitude, start/ end dates, and a table of data information.
     Attributes:
-        sensor_name     (str)                           : Name of sensor, for identification purposes
-        sensor_id       (int)                           : Unique ID of sensor given hash of name
-        location_id     (int)                           : Unique ID of sensor given hash of latitude/longitude
-        sensor_city     (str)                           : City for quick identification of latitude/longitude
-        sensor_latt     (float)                         : Longitude location of sensor
-        sensor_long     (float)                         : Latitude location of sensor
-        table           (Texttable)                     : Table of information, in easily print/convertible format!
-        data            (list[list[list[float]]])       : Raw information containing readings for every hour
-        data_dict       (list[dict[str,str | float]])   : List of rows as a dictionary
-        data_row        (list[list])                    : List of lists of row data
-        date_start      (datetime)                      : Datetime class that contains the date of which sensor 'starts'
-        date_end        (datetime)                      : Datetime class that contains the date of which sensor 'ends'
-        dates_length    (int)                           : Integer count of day difference between start and end date
+        sensor_name             (str)                           : Name of sensor, for identification purposes
+        reading_id_count        (int)                           : Integer count of each hourly row data
+        sensor_id               (int)                           : Unique ID of sensor given hash of name
+        location_id             (int)                           : Unique ID of sensor given hash of latitude/longitude
+        sensor_city             (str)                           : City for quick identification of latitude/longitude
+        sensor_latt             (float)                         : Longitude location of sensor
+        sensor_long             (float)                         : Latitude location of sensor
+        table                   (Texttable)                     : Table of information, in easily print/convertible format!
+        data                    (list[list[list[float]]])       : Raw information containing readings for every hour
+        data_dict               (list[dict[str,str | float]])   : List of raw data rows as a dictionary
+        data_row                (list[list])                    : List of lists of row data
+        locations_dict          (list[dict[str,str|float|bool]]): List of location data row as a dictionary
+        sensor_readings_dict    (list[dict[str,str|float]])     : List of sensor readings (hour by hour) data rows as a dictionary
+        sensors_dict            (list[dict[str,str|int]])       : List of sensor information data row as a dictionary
+        date_start              (datetime)                      : Datetime class that contains the date of which sensor 'starts'
+        date_end                (datetime)                      : Datetime class that contains the date of which sensor 'ends'
+        dates_length            (int)                           : Integer count of day difference between start and end date
     Constants:
-        date_table_str  : "%d-%m-%y %I%p"               : String expression for datetime representation in table
-        date_str        : "%x"                          : String expression for datetime representation for date specifically
-        time_str        : "%X%:z"                       : String expression for datetime representation for time specifically
-        id_date_str     : "%d-%m-%y (%j)"               : String expression for datetime representation for date/time, for csv table
+        date_table_str          : "%d-%m-%y %I%p"               : String expression for datetime representation in table
+        date_str                : "%x"                          : String expression for datetime representation for date specifically
+        time_str                : "%X%:z"                       : String expression for datetime representation for time specifically
+        id_date_str             : "%d-%m-%y (%j)"               : String expression for datetime representation for date/time, for csv table
+        timestampz_str          : "%y-%m-%d %X%z"               : String expression for datetime representation for timestampz data type in postgresql
     """    
     sensor_name: str
     reading_id_count: int
@@ -121,7 +126,7 @@ class fake_sensor():
                 temp    = lists[3]
                 humid   = lists[4]
                 _ = self.table.add_row((date.strftime(self.date_table_str), pm1, pm2_5, pm10, temp, humid))
-                current_hour: list[dict[str,str | float]] = self.get_sensor_readings(lists, current_date)
+                current_hour: list[dict[str,str | float]] = self.gen_sensor_readings(lists, current_date)
                 self.sensor_readings_dict.extend(current_hour)
                 self.data_dict.append( dict([
                                             (str('Sensor Name'), self.sensor_name),
@@ -144,6 +149,12 @@ class fake_sensor():
         return self.data_dict.__str__()
 
     def gen_loc_dict(self)->dict[str, str | float | bool]:
+        """gen_loc_dict Generates a dictionary containing sensor location
+
+        Generates a location dictionary from sensor location data in format of csv row
+
+        :return dict[str, str | float | bool]: Returns row of sensor location data as a dictionary
+        """        
         location_id = self.location_id
         name        = self.sensor_name
         latitude    = self.sensor_latt
@@ -160,6 +171,12 @@ class fake_sensor():
                     ])
 
     def gen_sensors_dict(self)->dict[str, str | int]:
+        """gen_sensors_dict Generates a sensor dictionary of sensor information
+
+        Generates a sensor dictionary of sensor information in format of csv row
+
+        :return dict[str, str | int]: Returns row of sensor information csv as a dictionary
+        """        
         sensor_id   = self.sensor_id
         location_id = self.location_id
         name        = self.sensor_name
@@ -171,8 +188,16 @@ class fake_sensor():
                     (str("status"),status)
                     ])
 
-    def get_sensor_readings(self, hour: list[float], time: datetime.datetime)->list[dict[str,str | float]]:
-        #titles = ["reading_id", "sensor_id", "measurement_type", "unit", "value", "recorded_at", "quality_flag"]
+    def gen_sensor_readings(self, hour: list[float], time: datetime.datetime)->list[dict[str,str | float]]:
+        """gen_sensor_readings Generates sensor readings dictionary for a specific hour
+
+        Given a specific hour of data, generate a list of csv rows to input into sensor_readings
+
+        :param list[float] hour: List of data to input
+        :param datetime.datetime time: Datetime object to get timestampz string
+        :return list[dict[str,str | float]]: List of sensor_readings rows as a list of dictionary
+        """
+        #"reading_id", "sensor_id", "measurement_type", "unit", "value", "recorded_at", "quality_flag"
         readings: list[dict[str,str | float]] = []
         current_reading_id = self.reading_id_count
         sensor_id = self.sensor_id
@@ -470,6 +495,13 @@ def generate_data(before: datetime.date, today: datetime.date, after: datetime.d
         sensors.append(generate_data_days(name_loc=sensor_names[num], today=today, today_data=today_data, start=before, end=after, total_size=total_size, swap_point=swapping_point))
 
 def create_locations_csv(sensors: list[fake_sensor], filename: str)->None:
+    """create_locations_csv Creates csv of sensor locations
+
+    Creates and outputs a new csv file of locations of each sensor with format locations_<filename>.csv from each sensor
+
+    :param list[fake_sensor] sensors: List of sensors from which to draw from
+    :param str filename: Name of file suffix to write csv data
+    """    
     titles = ["location_id", "name", "latitude", "longitude", "neighborhood", "indoor"]
     with open("locations_" + filename, 'w') as file:
         writer = csv.DictWriter(file, fieldnames=titles)
@@ -479,6 +511,13 @@ def create_locations_csv(sensors: list[fake_sensor], filename: str)->None:
     return
 
 def create_sensors_csv(sensors: list[fake_sensor], filename: str)->None:
+    """create_sensors_csv Creates a csv of sensor information
+
+    Creates and outputs a new csv file of sensor information with format sensors_<filename>.csv from each sensor
+
+    :param list[fake_sensor] sensors: List of sensors from which to draw from
+    :param str filename: Name of file suffix to write csv data
+    """    
     titles = ["sensor_id", "location_id", "name", "status"]
     with open("sensors_" + filename, 'w') as file:
         writer = csv.DictWriter(file, fieldnames=titles)
@@ -488,6 +527,13 @@ def create_sensors_csv(sensors: list[fake_sensor], filename: str)->None:
     return
 
 def create_sensor_readings_csv(sensors: list[fake_sensor], filename: str)->None:
+    """create_sensor_readings_csv Creates csv of sensor readings (hourly readings)
+
+    Creates and outputs a new csv file of sensor data with format sensor_readings_<filename>.csv from each sensor
+    
+    :param list[fake_sensor] sensors: List of fake sensors from which to write csv data
+    :param str filename: Name of file suffix to write csv data
+    """    
     titles = ["reading_id", "sensor_id", "measurement_type", "unit", "value", "recorded_at", "quality_flag"]
     with open("sensor_readings_" + filename, 'w') as file:
         writer = csv.DictWriter(file, fieldnames=titles)
@@ -497,9 +543,9 @@ def create_sensor_readings_csv(sensors: list[fake_sensor], filename: str)->None:
     return
 
 def create_data_csv(sensors: list[fake_sensor], filename: str)->None:
-    """create_csv Creates csv of sensor data
+    """create_csv Creates raw csv of sensor data
 
-    Creates and outputs a new csv file of specified name from list of generated fake sensors
+    Creates and outputs a new csv file of specified name from list of generated fake sensors of raw data
 
     :param list[fake_sensor] sensors: List of fake sensors from which to write csv data
     :param str filename: Name of file to write csv data
