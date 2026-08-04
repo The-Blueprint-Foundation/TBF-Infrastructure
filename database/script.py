@@ -1,9 +1,7 @@
-from os import name
 import datetime, random, csv, sys, getopt 
 from typing import override
 from dateutil import relativedelta
 from random_word import RandomWords  # pyright: ignore[reportMissingTypeStubs]
-from requests import status_codes
 from texttable import Texttable  # pyright: ignore[reportMissingTypeStubs]
 """ Simple Python script for generating an aqi backlog given a baseline """
 placeholder: bool = True
@@ -62,6 +60,7 @@ class fake_sensor():
     date_str = '%x'
     time_str = '%X%:z'
     id_date_str = '%d-%m-%y (%j)'
+    timestampz_str = '%y-%m-%d %X%z'
     def __init__(self, loc : tuple[str,str,float,float], data : list[list[list[float]]], start : datetime.date, end: datetime.date, length: int) -> None:
         """__init__ Create sensor given generated data
 
@@ -158,7 +157,7 @@ class fake_sensor():
                     (str("status"),status)
                     ])
 
-    def get_sensor_readings
+    def get_sensor_readings(self)->dict[str,str | int ]
 
     def get_table(self)->str | None:
         """ :return str: returns generated texttable as string using draw() function"""
