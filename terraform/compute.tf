@@ -120,10 +120,6 @@ resource "google_compute_instance" "api_vm" {
     db-password = var.api_db_password
   }
 
-  metadata_startup_script = templatefile("${path.module}/scripts/api_startup.sh", {
-    api_port = tostring(var.api_port)
-  })
-
   # Ensure SQL instance is ready before the VM boots so the startup script
   # can reach the database during first-run setup.
   depends_on = [
