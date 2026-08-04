@@ -1,7 +1,9 @@
+from os import name
 import datetime, random, csv, sys, getopt 
 from typing import override
 from dateutil import relativedelta
 from random_word import RandomWords  # pyright: ignore[reportMissingTypeStubs]
+from requests import status_codes
 from texttable import Texttable  # pyright: ignore[reportMissingTypeStubs]
 """ Simple Python script for generating an aqi backlog given a baseline """
 placeholder: bool = True
@@ -23,6 +25,8 @@ class fake_sensor():
     Contains a sensor with name, city, latitude, longitude, start/ end dates, and a table of data information.
     Attributes:
         sensor_name     (str)                           : Name of sensor, for identification purposes
+        sensor_id       (int)                           : Unique ID of sensor given hash of name
+        location_id     (int)                           : Unique ID of sensor given hash of latitude/longitude
         sensor_city     (str)                           : City for quick identification of latitude/longitude
         sensor_latt     (float)                         : Longitude location of sensor
         sensor_long     (float)                         : Latitude location of sensor
@@ -40,6 +44,8 @@ class fake_sensor():
         id_date_str     : "%d-%m-%y (%j)"               : String expression for datetime representation for date/time, for csv table
     """    
     sensor_name: str
+    sensor_id  : int
+    location_id: int
     sensor_city: str
     sensor_latt: float
     sensor_long: float
@@ -70,11 +76,14 @@ class fake_sensor():
         random.seed()
         start_of_day = datetime.time(hour=0,minute=0)
         self.sensor_name = loc[0]
+        self.sensor_id   = hash(self.sensor_name)
         self.sensor_city = loc[1]
         self.sensor_latt = loc[2]
         self.sensor_long = loc[3]
+        self.location_id = hash(self.sensor_latt + self.sensor_long)
         self.data = data.copy()
         self.data_dict = []
+        
 
 
         self.date_start = datetime.datetime.combine(start,start_of_day)
@@ -120,6 +129,36 @@ class fake_sensor():
         """ :return str: returns dictionary as string representation
         """
         return self.data_dict.__str__()
+
+    def get_loc_dict(self)->dict[str, str | float | bool]:
+        location_id = self.location_id
+        name        = self.sensor_name
+        latitude    = self.sensor_latt
+        longitude       = self.sensor_long   
+        neighborhood   = self.sensor_city
+        indoor          = False
+        return dict([
+                    (str("location_id"), location_id),
+                    (str("name"), name),
+                    (str("latitude"), latitude),
+                    (str("longitude"), longitude),
+                    (str("neighborhood"), neighborhood),
+                    (str("indoor"), indoor)
+                    ])
+
+    def get_sensors_dict(self)->dict[str, str | int]:
+        sensor_id   = self.sensor_id
+        location_id = self.location_id
+        name        = self.sensor_name
+        status      = "Active"
+        return dict([
+                    (str("sensor_id"), sensor_id),
+                    (str("location_id"),location_id),
+                    (str("name"),name),
+                    (str("status"),status)
+                    ])
+
+    def get_sensor_readings
 
     def get_table(self)->str | None:
         """ :return str: returns generated texttable as string using draw() function"""
@@ -395,6 +434,15 @@ def generate_data(before: datetime.date, today: datetime.date, after: datetime.d
     for num in range(number_sensors):
         sensor_names[num] = get_fake_sensor_loc(word.get_random_word())  # pyright: ignore[reportCallIssue, reportArgumentType]
         sensors.append(generate_data_days(name_loc=sensor_names[num], today=today, today_data=today_data, start=before, end=after, total_size=total_size, swap_point=swapping_point))
+
+def create_locations_csv(sensors: list[fake_sensor], filename: str):
+    titles = ["location_id", "name", "latitude", "longitude", "neighborhood", "indoor"]
+    with open("locations" + filename, 'w') as file:
+        writer = csv.DictWriter(file, fieldnames=titles)
+        writer.writeheader()
+        for sensor in sensors:
+            writer.writerows([sensor.get_loc_dict()])
+    return
 
 def create_csv(sensors: list[fake_sensor], filename: str):
     """create_csv Creates csv of sensor data
