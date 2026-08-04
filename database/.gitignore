@@ -9,3 +9,5 @@
 .vscode/
 #code workspace
 *.code-workspace
+#Ignored output files
+output_ignore/

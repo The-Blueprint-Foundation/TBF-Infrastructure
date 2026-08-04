@@ -42,6 +42,7 @@ class fake_sensor():
         id_date_str     : "%d-%m-%y (%j)"               : String expression for datetime representation for date/time, for csv table
     """    
     sensor_name: str
+    reading_id_count: int
     sensor_id  : int
     location_id: int
     sensor_city: str
@@ -52,6 +53,9 @@ class fake_sensor():
     data: list[list[list[float]]]
     data_dict : list[dict[str,str | float]]
     data_row:list[list] = []
+    locations_dict : list[dict[str,str | float | bool]]
+    sensor_readings_dict : list[dict[str,str | float]]
+    sensors_dict : list[dict[str, str | int]]
     
     date_start: datetime.datetime
     date_end  : datetime.datetime
@@ -74,17 +78,25 @@ class fake_sensor():
         """
         random.seed()
         start_of_day = datetime.time(hour=0,minute=0)
+
         self.sensor_name = loc[0]
+        self.reading_id_count = 0
         self.sensor_id   = hash(self.sensor_name)
         self.sensor_city = loc[1]
         self.sensor_latt = loc[2]
         self.sensor_long = loc[3]
         self.location_id = hash(self.sensor_latt + self.sensor_long)
+
         self.data = data.copy()
+
         self.data_dict = []
+        self.locations_dict = []
+        self.sensors_dict = []
+        self.sensor_readings_dict = []
+
+        self.locations_dict.append(self.gen_loc_dict())
+        self.sensors_dict.append(self.gen_sensors_dict())
         
-
-
         self.date_start = datetime.datetime.combine(start,start_of_day)
         self.date_end = datetime.datetime.combine(end,start_of_day)
         self.dates_length = length
@@ -109,6 +121,8 @@ class fake_sensor():
                 temp    = lists[3]
                 humid   = lists[4]
                 _ = self.table.add_row((date.strftime(self.date_table_str), pm1, pm2_5, pm10, temp, humid))
+                current_hour: list[dict[str,str | float]] = self.get_sensor_readings(lists, current_date)
+                self.sensor_readings_dict.extend(current_hour)
                 self.data_dict.append( dict([
                                             (str('Sensor Name'), self.sensor_name),
                                             (str('Region'), self.sensor_city),
@@ -129,7 +143,7 @@ class fake_sensor():
         """
         return self.data_dict.__str__()
 
-    def get_loc_dict(self)->dict[str, str | float | bool]:
+    def gen_loc_dict(self)->dict[str, str | float | bool]:
         location_id = self.location_id
         name        = self.sensor_name
         latitude    = self.sensor_latt
@@ -145,7 +159,7 @@ class fake_sensor():
                     (str("indoor"), indoor)
                     ])
 
-    def get_sensors_dict(self)->dict[str, str | int]:
+    def gen_sensors_dict(self)->dict[str, str | int]:
         sensor_id   = self.sensor_id
         location_id = self.location_id
         name        = self.sensor_name
@@ -157,7 +171,28 @@ class fake_sensor():
                     (str("status"),status)
                     ])
 
-    def get_sensor_readings(self)->dict[str,str | int ]
+    def get_sensor_readings(self, hour: list[float], time: datetime.datetime)->list[dict[str,str | float]]:
+        #titles = ["reading_id", "sensor_id", "measurement_type", "unit", "value", "recorded_at", "quality_flag"]
+        readings: list[dict[str,str | float]] = []
+        current_reading_id = self.reading_id_count
+        sensor_id = self.sensor_id
+        measurement_types = ["pm1", "pm2.5", "pm10", "Temperature", "Humidity"]
+        units = ["Micrograms per cubic meter", "Micrograms per cubic meter","Micrograms per cubic meter","Fahrenheit", "Relative Humidity (Percentage)"]
+        #value = hour[type]
+        recorded_at = time.strftime(self.timestampz_str)
+        quality_flag = "Good"
+        for i in range(len(hour)):
+            readings.append(   dict([
+                                    (str("reading_id"), current_reading_id),
+                                    (str("sensor_id"), sensor_id),
+                                    (str("measurement_type"), measurement_types[i]),
+                                    (str("unit"), units[i]),
+                                    (str("value"), hour[i]),
+                                    (str("recorded_at"), recorded_at),
+                                    (str("quality_flag"), quality_flag)
+                                    ]))
+            current_reading_id += 1
+        return readings
 
     def get_table(self)->str | None:
         """ :return str: returns generated texttable as string using draw() function"""
@@ -434,16 +469,34 @@ def generate_data(before: datetime.date, today: datetime.date, after: datetime.d
         sensor_names[num] = get_fake_sensor_loc(word.get_random_word())  # pyright: ignore[reportCallIssue, reportArgumentType]
         sensors.append(generate_data_days(name_loc=sensor_names[num], today=today, today_data=today_data, start=before, end=after, total_size=total_size, swap_point=swapping_point))
 
-def create_locations_csv(sensors: list[fake_sensor], filename: str):
+def create_locations_csv(sensors: list[fake_sensor], filename: str)->None:
     titles = ["location_id", "name", "latitude", "longitude", "neighborhood", "indoor"]
-    with open("locations" + filename, 'w') as file:
+    with open("locations_" + filename, 'w') as file:
         writer = csv.DictWriter(file, fieldnames=titles)
         writer.writeheader()
         for sensor in sensors:
-            writer.writerows([sensor.get_loc_dict()])
+            writer.writerows(sensor.locations_dict)
     return
 
-def create_csv(sensors: list[fake_sensor], filename: str):
+def create_sensors_csv(sensors: list[fake_sensor], filename: str)->None:
+    titles = ["sensor_id", "location_id", "name", "status"]
+    with open("sensors_" + filename, 'w') as file:
+        writer = csv.DictWriter(file, fieldnames=titles)
+        writer.writeheader()
+        for sensor in sensors:
+            writer.writerows(sensor.sensors_dict)
+    return
+
+def create_sensor_readings_csv(sensors: list[fake_sensor], filename: str)->None:
+    titles = ["reading_id", "sensor_id", "measurement_type", "unit", "value", "recorded_at", "quality_flag"]
+    with open("sensor_readings_" + filename, 'w') as file:
+        writer = csv.DictWriter(file, fieldnames=titles)
+        writer.writeheader()
+        for sensor in sensors:
+            writer.writerows(sensor.sensor_readings_dict)
+    return
+
+def create_data_csv(sensors: list[fake_sensor], filename: str)->None:
     """create_csv Creates csv of sensor data
 
     Creates and outputs a new csv file of specified name from list of generated fake sensors
@@ -453,7 +506,7 @@ def create_csv(sensors: list[fake_sensor], filename: str):
     """
     #Thank you https://www.geeksforgeeks.org/python/working-csv-files-python/
     titles = ["Sensor Name", "Region", "Latitude", "Longitude", "Date", "Time", "PM1", "PM2.5", "PM10", "Temperature", "Humidity"]
-    with open(filename, 'w') as file:
+    with open("data_" + filename, 'w') as file:
         writer = csv.DictWriter(file, fieldnames=titles)
         writer.writeheader()
         for sensor in sensors:
@@ -507,7 +560,12 @@ def help()->None:
     """
     msg=\
     """
-    Generates a range of fake data from a specified number of sensors, over a specified time period
+    Generates a range of fake data from a specified number of sensors, over a specified time period,
+    Outputting to 3 separate csv files with default suffix of 'file' and of form : 
+        locations_<suffix>.csv 
+        sensors_<suffix>.csv
+        sensor_readings<suffix>.csv
+
     Usage:      python3     script.py   [options]   <args>
     args are (in this order):
         beforeMonths                    Number of months before current date to model
@@ -516,9 +574,10 @@ def help()->None:
     options are (options may appear in any order):
         -h, --help                      Displays this message and exits
         -p, --print                     Display the sensor output after generation
-        -d, --debug                     Displays every option / argument deciphered
-        -o, --output=  filename         Specify file to send csv data, defaults to file.csv
-        -n, --no-file                   Specify that file
+        -d, --debug                     Displays every option / argument deciphered + additional data
+        -o, --output=  filename         Specify file suffix for csv files (default is 'file')
+        -n, --no-file                   Specify no csv file output
+        -r, --raw                       Toggle data_<suffix>.csv that displays all information in one csv
     """
     print(msg)
 
@@ -538,12 +597,15 @@ def main()->None:
     DEBUG_L= "--debug"
     NFILE_S= "-n"
     NFILE_L= "--no-file"
+    RAW_S  = "-r"
+    RAW_L  = "--raw"
     optionDict = {
         "help" : False,
         "print": False,
         "debug": False,
         "output": False,
-        "no-file": False
+        "no-file": False,
+        "raw"    : False
     }
     argsList = [3,3,3]
     argsDict = {
@@ -556,8 +618,8 @@ def main()->None:
 
 
     args = sys.argv[1:]
-    option = "hpdno:"
-    alt_options = ["help", "print", "output", "debug", "no-file"]
+    option = "hpdnro:"
+    alt_options = ["help", "print", "output", "debug", "no-file", "raw"]
     try: 
         cmd_options,cmd_arguments = getopt.getopt(args,option,alt_options)
         for current_opt, current_value in cmd_options:
@@ -574,7 +636,8 @@ def main()->None:
                 optionDict.update({"debug" : True})
             elif current_opt in (NFILE_S, NFILE_L):
                 optionDict.update({"no-file" : True})
-
+            elif current_opt in (RAW_S, RAW_L):
+                optionDict.update({"raw" : True})
             if exit is True:
                 sys.exit(0)
         if optionDict.get("debug"):
@@ -584,11 +647,13 @@ def main()->None:
 
         if optionDict.get("no-file") and optionDict.get("output"):
             print(f'Note that options --output && --no-file chosen, ignoring no file...')
+        if optionDict.get("no-file") and optionDict.get("raw"):
+            print('Note that options --raw && --no-file chosen, ignoring no file...')
 
         arg_count = len(cmd_arguments)
         if arg_count != 3:
             if arg_count < 3:
-                print(f'Note, only {arg_count} arguments given, defaults to 3 months before, after, and sensors with default output to file.csv')
+                print(f'Note, only {arg_count} arguments given, defaults to 3 months before, after, and sensors with default output to file.csv as suffix')
             if arg_count > 3:
                 assert False, f"Too many args given, expect 3 but {arg_count} given..."
 
@@ -602,12 +667,16 @@ def main()->None:
     except getopt.error as error:
         print(str(error))
         help()
-        sys.exit(0)
+        sys.exit(1)
     except TypeError as error:
         print("Invalid Argument Given")
         print(str(error))
         help()
-        sys.exit(0)
+        sys.exit(2)
+    except AssertionError as error:
+        print(str(error))
+        help()
+        sys.exit(3)
         
     before_months = argsList[0]
     after_months  = argsList[1]
@@ -626,7 +695,11 @@ def main()->None:
         for sensor in sensors:
             print(sensor)
     if not optionDict.get("no-file"):
-        create_csv(sensors, filename) 
+        if optionDict.get("raw"):
+            create_data_csv(sensors, filename) 
+        create_locations_csv(sensors, filename)
+        create_sensors_csv(sensors, filename)
+        create_sensor_readings_csv(sensors,filename)
 
 if __name__ == "__main__":
     main()
