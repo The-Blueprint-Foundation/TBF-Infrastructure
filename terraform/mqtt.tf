@@ -100,6 +100,7 @@ resource "google_compute_instance" "mqtt_vm" {
     db-name     = var.db_name
     db-user     = var.subscriber_db_user
     db-password = var.subscriber_db_password
+    quantaq-api-key = var.quantaq_api_key
 
     # Publisher secrets — add one entry per publisher API key or secret.
     # Each key is fetched by Ansible and rendered into the publisher's .env file.

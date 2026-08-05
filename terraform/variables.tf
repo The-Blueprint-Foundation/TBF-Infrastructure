@@ -169,3 +169,10 @@ variable "subscriber_db_password" {
 #   sensitive   = true
 #   default     = ""   # empty default prevents errors if publisher is not in use
 # }
+
+variable "quantaq_api_key" {
+  description = "API key for access to the Blueprint Foundations QuantAQ sensor data."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
