@@ -1,19 +1,3 @@
----
-# ansible/roles/fastapi/tasks/main.yml
-# Mirrors the structure of the mosquitto role — sets up the application
-# directory, venv, .env file, and systemd service unit.
-#
-# Note: Python package installation is absent here — dependencies are managed
-# by the repository's requirements.txt and installed during deployment via
-# deploy.yml.
-#
-# Privilege model:
-#   - System user creation     → become: true (root)
-#   - Directory creation       → become: true (root), owned by fastapi_user
-#   - Venv creation and pip    → become: true, become_user: fastapi_user
-#   - .env file                → become: true, become_user: fastapi_user
-#   - systemd unit file        → become: true (root)
-#   - systemd enable           → become: true (root)
 
 # ── Fetch API DB credentials from instance metadata ───────────────────────────
 # The FastAPI VM metadata contains only the API reader credentials.
@@ -45,32 +29,11 @@
     api_db_password: "{{ api_db_password_result.stdout }}"
   no_log: true
 
-# ── Application user and directory ────────────────────────────────────────────
-
-- name: Create fastapi-worker system user
-  ansible.builtin.user:
-    name: "{{ fastapi_user }}"
-    system: true
-    shell: /usr/sbin/nologin
-    create_home: false
-  become: true
-
-- name: Create application directory
-  ansible.builtin.file:
-    path: "{{ fastapi_app_dir }}"
-    state: directory
-    owner: "{{ fastapi_user }}"
-    group: "{{ fastapi_user }}"
-    mode: "0755"
-  become: true
-
-# ── Perform Initial Git clone and initialize application ────────────────────────────────────────────
-
 - name: Clone or pull latest FastAPI code
   ansible.builtin.git:
     repo: "{{ fastapi_repo_url }}"
     dest: "{{ fastapi_app_dir }}"
-    version: "{{ fastapi_repo_branch }}"
+    version: "{{ git_branch }}"
     force: true
   become: true
   become_user: "{{ fastapi_user }}"
@@ -116,17 +79,6 @@
     mode: "0600"
   become: true
 
-# ── systemd service ───────────────────────────────────────────────────────────
-
-- name: Template FastAPI systemd service unit
-  ansible.builtin.template:
-    src: fastapi.service.j2
-    dest: /etc/systemd/system/fastapi.service
-    owner: root
-    group: root
-    mode: "0644"
-  become: true
-
 - name: Check if FastAPI entrypoint exists
   ansible.builtin.stat:
     path: "{{ fastapi_app_dir }}/main.py"
@@ -137,4 +89,4 @@
     name: fastapi
     state: restarted
   become: true
-  when: fastapi_script.stat.exists
+  when: git_result.changed and fastapi_script.stat.exists

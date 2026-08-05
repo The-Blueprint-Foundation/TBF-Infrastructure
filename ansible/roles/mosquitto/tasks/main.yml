@@ -8,24 +8,24 @@
     cmd: >
       curl -sf -H "Metadata-Flavor: Google"
       http://metadata.google.internal/computeMetadata/v1/instance/attributes/db-user
-  register: db_user_result
+  register: mqtt_db_user_result
   changed_when: false
 
-- name: Set db_user fact
+- name: Set mqtt_db_user fact
   ansible.builtin.set_fact:
-    db_user: "{{ db_user_result.stdout }}"
+    mqtt_db_user: "{{ mqtt_db_user_result.stdout }}"
 
 - name: Fetch DB password from instance metadata
   ansible.builtin.command:
     cmd: >
       curl -sf -H "Metadata-Flavor: Google"
       http://metadata.google.internal/computeMetadata/v1/instance/attributes/db-password
-  register: db_password_result
+  register: mqtt_db_password_result
   changed_when: false
 
-- name: Set db_password fact
+- name: Set mqtt_db_password fact
   ansible.builtin.set_fact:
-    db_password: "{{ db_password_result.stdout }}"
+    mqtt_db_password: "{{ mqtt_db_password_result.stdout }}"
   no_log: true
 
 # ── Mosquitto ─────────────────────────────────────────────────────────────────
@@ -55,6 +55,37 @@
     state: started
   become: true
 
+# ── Shared application user and repo root ─────────────────────────────────────
+# The mqtt_user owns the cloned repo and all component venvs beneath it.
+# This user is also referenced by each service's systemd unit.
+
+- name: Create mqtt-worker system user
+  ansible.builtin.user:
+    name: "{{ mqtt_user }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+  become: true
+
+- name: Create repo root directory
+  ansible.builtin.file:
+    path: "{{ pipeline_repo_dir }}"
+    state: directory
+    owner: "{{ mqtt_user }}"
+    group: "{{ mqtt_user }}"
+    mode: "0755"
+  become: true
+
+- name: Clone or pull latest monorepo
+  ansible.builtin.git:
+    repo: "{{ pipeline_repo_url }}"
+    dest: "{{ pipeline_repo_dir }}"
+    version: "{{ pipeline_repo_branch }}"
+    force: true
+  become: true
+  become_user: "{{ mqtt_user }}"
+  register: git_result
+
 # ── Subscriber ────────────────────────────────────────────────────────────────
 # Note: Python package installation is absent here — dependencies are managed
 # by the repository's requirements.txt and installed during deployment via
@@ -71,15 +102,7 @@
     service_env_template: subscriber.env.j2
     service_venv: "{{ subscriber_venv }}"
     service_script: subscriber.py
-
-- name: Template subscriber .env file
-  ansible.builtin.template:
-    src: subscriber.env.j2
-    dest: "{{ subscriber_dir }}/.env"
-    owner: root
-    group: root
-    mode: "0600"
-  become: true
+    service_user: "{{ mqtt_user }}"
 
 # ── Publishers ─────────────────────────────────────────────────────────────────
 # Add an include_tasks block per publisher as new integrations are added.
@@ -116,7 +139,9 @@
 #     service_env_template: purpleair.env.j2
 #     service_venv: "{{ purpleair_venv }}"
 #     service_script: publisher.py
+#     service_user: "{{ mqtt_user }}"
 
+# ── QuantAQ Publisher ─────────────────────────────────────────────────────────────────
 - name: Fetch QuantAQ API key from instance metadata
   ansible.builtin.command:
     cmd: >
@@ -142,3 +167,4 @@
     service_env_template: quantaq.env.j2
     service_venv: "{{ quantaq_venv }}"
     service_script: publisher.py
+    service_user: "{{ mqtt_user }}"

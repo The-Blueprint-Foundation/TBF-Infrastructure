@@ -21,6 +21,6 @@
 - name: Restart {{ service_name }}
   ansible.builtin.systemd:
     name: "{{ service_name }}"
-    state: restarted
+    state: started
   become: true
   listen: "Restart {{ service_name }}"

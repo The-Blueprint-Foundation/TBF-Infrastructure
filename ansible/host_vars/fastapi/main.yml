@@ -1,0 +1,13 @@
+# ansible/host_vars/fastapi/main.yml
+
+# System user that owns the FastAPI venv and runs the service.
+# Only root-level operations (apt, systemd units) use become: true without
+# become_user — everything else runs as this user.
+fastapi_user: fastapi-worker
+
+fastapi_repo_url: "https://github.com/The-Blueprint-Foundation/TBF-API.git"
+fastapi_repo_branch: "main"
+
+# Root directory where the FastAPI application is cloned.
+fastapi_app_dir: /opt/tbf-api
+fastapi_venv: "{{ fastapi_app_dir }}/.venv"

@@ -22,7 +22,7 @@
     - mosquitto
 
 - name: Configure API VM
-  hosts: api
+  hosts: fastapi
   gather_facts: false
   roles:
     - fastapi

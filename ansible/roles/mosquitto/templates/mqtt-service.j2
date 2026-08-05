@@ -7,7 +7,7 @@ After=network.target mosquitto.service
 Requires=mosquitto.service
 
 [Service]
-User=nobody
+User={{ service_user }}
 WorkingDirectory={{ service_working_dir }}
 EnvironmentFile={{ service_env_file }}
 ExecStart={{ service_venv }}/bin/python {{ service_script }}
