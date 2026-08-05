@@ -34,6 +34,7 @@ resource "google_project_iam_custom_role" "tunnel_user" {
   permissions = [
     "resourcemanager.projects.get",
     "resourcemanager.projects.getIamPolicy",
+    "compute.instances.setMetadata"
   ]
 }
 
