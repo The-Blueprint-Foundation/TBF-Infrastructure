@@ -1,0 +1,19 @@
+# /etc/systemd/system/fastapi.service
+# Managed by Ansible — do not edit manually.
+
+[Unit]
+Description=FastAPI application
+After=network.target
+
+[Service]
+User={{ fastapi_user }}
+WorkingDirectory={{ fastapi_app_dir }}
+EnvironmentFile={{ fastapi_app_dir }}/.env
+ExecStart={{ fastapi_venv }}/bin/uvicorn main:app --host 0.0.0.0 --port {{ fastapi_port }} --workers {{ fastapi_workers }}
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Install]
+WantedBy=multi-user.target

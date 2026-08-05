@@ -1,0 +1,23 @@
+# /etc/systemd/system/{{ service_name }}.service
+# Managed by Ansible — do not edit manually.
+
+[Unit]
+Description={{ service_description }}
+After=network.target mosquitto.service
+Requires=mosquitto.service
+
+[Service]
+User={{ service_user }}
+WorkingDirectory={{ service_working_dir }}
+EnvironmentFile={{ service_env_file }}
+ExecStart={{ service_venv }}/bin/python {{ service_script }}
+Restart=always
+RestartSec=5
+
+# Ensure the service is restarted if it exits too quickly,
+# rather than being put into a failed state immediately.
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Install]
+WantedBy=multi-user.target
