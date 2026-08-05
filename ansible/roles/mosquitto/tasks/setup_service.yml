@@ -1,0 +1,78 @@
+---
+# ansible/roles/mosquitto/tasks/setup_service.yml
+# Reusable task file — sets up a Python venv, .env file, and systemd service
+# unit for any MQTT-related component (subscriber, publishers, etc.).
+#
+# Expected variables (pass via include_tasks vars or set in the calling play):
+#   service_name        : systemd unit name, e.g. "mqtt-subscriber"
+#   service_description : human-readable description for the unit file
+#   service_working_dir : working directory for the service process
+#   service_env_file    : path to the .env file the service reads
+#   service_env_template: Jinja2 template to use for the .env file
+#   service_venv        : path to the Python venv
+#   service_script      : Python script filename, e.g. "subscriber.py"
+#   service_user        : system user that owns the venv and runs the service
+#
+# Privilege model:
+#   - System user creation     → become: true (root)
+#   - Directory creation       → become: true (root), owned by service_user
+#   - Venv creation and pip    → become: true, become_user: service_user
+#   - .env file                → become: true, become_user: service_user
+#   - systemd unit file        → become: true (root)
+#   - systemd enable           → become: true (root)
+
+- name: "{{ service_name }} | Create system user"
+  ansible.builtin.user:
+    name: "{{ service_user }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+  become: true
+
+- name: "{{ service_name }} | Create Python virtual environment"
+  ansible.builtin.command:
+    cmd: python3 -m venv {{ service_venv }}
+    creates: "{{ service_venv }}/bin/activate"
+  become: true
+  become_user: "{{ service_user }}"
+
+- name: "{{ service_name }} | Upgrade pip in venv"
+  ansible.builtin.pip:
+    name: pip
+    state: latest
+    virtualenv: "{{ service_venv }}"
+  become: true
+  become_user: "{{ service_user }}"
+
+- name: "{{ service_name }} | Template .env file"
+  ansible.builtin.template:
+    src: "{{ service_env_template }}"
+    dest: "{{ service_env_file }}"
+    owner: "{{ service_user }}"
+    group: "{{ service_user }}"
+    mode: "0600"
+  become: true
+
+- name: "{{ service_name }} | Check if service script exists"
+  ansible.builtin.stat:
+    path: "{{ service_working_dir }}/{{ service_script }}"
+  register: service_script_file
+
+- name: "{{ service_name }} | Template systemd service unit"
+  ansible.builtin.template:
+    src: mqtt-service.j2
+    dest: "/etc/systemd/system/{{ service_name }}.service"
+    owner: "{{ service_user }}"
+    group: "{{ service_user }}"
+    mode: "0644"
+  become: true
+  notify:
+    - "Restart {{ service_name }}"
+
+- name: "{{ service_name }} | Enable service"
+  ansible.builtin.systemd:
+    name: "{{ service_name }}"
+    enabled: true
+    daemon_reload: true
+  become: true
+  when: service_script_file.stat.exists

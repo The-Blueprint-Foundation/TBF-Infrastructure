@@ -1,0 +1,31 @@
+---
+# ansible/host_vars/mqtt/main.yml
+
+# System user that owns the subscriber/producer venvs and runs the services.
+# Only root-level operations (apt, systemd units) use become: true without
+# become_user — everything else runs as this user.
+mqtt_user: mqtt-worker
+
+# ansible/host_vars/mqtt/main.yml
+pipeline_repo_url: "https://github.com/The-Blueprint-Foundation/TBF-Pipeline.git"
+pipeline_repo_branch: "main"
+
+# Root directory where the full monorepo is cloned.
+pipeline_repo_dir: /opt/tbf-pipeline
+subscriber_dir: "{{ pipeline_repo_dir }}/subscriber"
+publishers_dir: "{{ pipeline_repo_dir }}/publishers"
+
+# Subscriber paths — point into the monorepo subdirectory.
+subscriber_venv: "{{ subscriber_dir }}/.venv"
+
+# ── Publisher paths ────────────────────────────────────────────────────────────
+# Add a block of path variables per publisher as new integrations are added.
+# These are referenced in tasks/main.yml and deploy.yml.
+#
+# Example — PurpleAir publisher:
+# purpleair_dir: "{{ publishers_dir }}/purpleair"
+# purpleair_venv: "{{ purpleair_dir }}/.venv"
+
+quantaq_dir: "{{ publishers_dir }}/quantaq"
+quantaq_venv: "{{ quantaq_dir }}/.venv"
+
