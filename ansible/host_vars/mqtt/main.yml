@@ -20,7 +20,7 @@ subscriber_venv: "{{ subscriber_dir }}/.venv"
 
 # ── Publisher paths ────────────────────────────────────────────────────────────
 # Add a block of path variables per publisher as new integrations are added.
-# These are referenced in tasks/main.yml and deploy.yml.
+# These are referenced in tasks/main.yml.
 #
 # Example — PurpleAir publisher:
 # purpleair_dir: "{{ publishers_dir }}/purpleair"

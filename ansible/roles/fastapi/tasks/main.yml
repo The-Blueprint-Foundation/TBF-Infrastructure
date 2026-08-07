@@ -3,10 +3,6 @@
 # Mirrors the structure of the mosquitto role — sets up the application
 # directory, venv, .env file, and systemd service unit.
 #
-# Note: Python package installation is absent here — dependencies are managed
-# by the repository's requirements.txt and installed during deployment via
-# deploy.yml.
-#
 # Privilege model:
 #   - System user creation     → become: true (root)
 #   - Directory creation       → become: true (root), owned by fastapi_user
@@ -15,9 +11,44 @@
 #   - systemd unit file        → become: true (root)
 #   - systemd enable           → become: true (root)
 
-# ── Fetch API DB credentials from instance metadata ───────────────────────────
-# The FastAPI VM metadata contains only the API reader credentials.
+# ── Install base packages ───────────────────────────
+- name: Install base packages
+  ansible.builtin.apt:
+    name: 
+      - python3
+      - python3-pip
+      - python3-venv
+      - git
+      - curl
+    state: present
+  become: true
+
+# ── Fetch API DB connection information from instance metadata ───────────────────────────
 # Subscriber credentials are intentionally absent from this VM.
+
+- name: Fetch DB host from instance metadata
+  ansible.builtin.command:
+    cmd: >
+      curl -sf -H "Metadata-Flavor: Google"
+      http://metadata.google.internal/computeMetadata/v1/instance/attributes/db-host
+  register: db_host_result
+  changed_when: false
+
+- name: Set db_host fact
+  ansible.builtin.set_fact:
+    db_host: "{{ db_host_result.stdout }}"
+
+- name: Fetch DB name from instance metadata
+  ansible.builtin.command:
+    cmd: >
+      curl -sf -H "Metadata-Flavor: Google"
+      http://metadata.google.internal/computeMetadata/v1/instance/attributes/db-name
+  register: db_name_result
+  changed_when: false
+
+- name: Set db_name fact
+  ansible.builtin.set_fact:
+    db_name: "{{ db_name_result.stdout }}"
 
 - name: Fetch DB user from instance metadata
   ansible.builtin.command:

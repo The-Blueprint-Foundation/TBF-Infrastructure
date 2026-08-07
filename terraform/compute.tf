@@ -88,23 +88,6 @@ resource "google_compute_instance" "api_vm" {
 
   network_interface {
     subnetwork = google_compute_subnetwork.subnet.id
-    # No access_config block -> no public IP; traffic exits via Cloud NAT.
-    #
-    # When ready for external access, uncomment the block below and provision
-    # a google_compute_address resource for a stable public IP:
-    #
-    # resource "google_compute_address" "api_static_ip" {
-    #   name   = "${var.app_name}-api-ip"
-    #   region = var.region
-    # }
-    #
-    # access_config {
-    #   nat_ip = google_compute_address.api_static_ip.address
-    # }
-    #
-    # NOTE: Also uncomment the allow_api_external firewall rule in
-    # networking.tf, and update the web app team's API base URL to point
-    # at this static IP.
   }
 
   service_account {
