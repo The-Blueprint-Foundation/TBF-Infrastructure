@@ -1,7 +1,44 @@
 ---
 # ansible/roles/mosquitto/tasks/main.yml
 
-# ── Fetch DB credentials from instance metadata ───────────────────────────
+# ── Install base packages ───────────────────────────
+- name: Install base packages
+  ansible.builtin.apt:
+    name: 
+      - python3
+      - python3-pip
+      - python3-venv
+      - git
+      - curl
+    state: present
+  become: true
+
+# ── Fetch API DB connection information from instance metadata ───────────────────────────
+# API credentials are intentionally absent from this VM.
+
+- name: Fetch DB host from instance metadata
+  ansible.builtin.command:
+    cmd: >
+      curl -sf -H "Metadata-Flavor: Google"
+      http://metadata.google.internal/computeMetadata/v1/instance/attributes/db-host
+  register: db_host_result
+  changed_when: false
+
+- name: Set db_host fact
+  ansible.builtin.set_fact:
+    db_host: "{{ db_host_result.stdout }}"
+
+- name: Fetch DB name from instance metadata
+  ansible.builtin.command:
+    cmd: >
+      curl -sf -H "Metadata-Flavor: Google"
+      http://metadata.google.internal/computeMetadata/v1/instance/attributes/db-name
+  register: db_name_result
+  changed_when: false
+
+- name: Set db_name fact
+  ansible.builtin.set_fact:
+    db_name: "{{ db_name_result.stdout }}"
 
 - name: Fetch DB username from instance metadata
   ansible.builtin.command:
@@ -88,8 +125,7 @@
 
 # ── Subscriber ────────────────────────────────────────────────────────────────
 # Note: Python package installation is absent here — dependencies are managed
-# by the repository's requirements.txt and installed during deployment via
-# deploy.yml.
+# by the repository's requirements.txt and installed during initial setup
 
 - name: Set up MQTT subscriber service
   ansible.builtin.include_tasks:

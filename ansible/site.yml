@@ -8,6 +8,7 @@
 # To target a single VM:
 #   ansible-playbook -i inventory/ site.yml --limit mqtt
 #   ansible-playbook -i inventory/ site.yml --limit fastapi
+#   ansible-playbook -i inventory/ site.yml --limit proxy
 
 - name: Apply common configuration to all VMs
   hosts: all
@@ -26,3 +27,9 @@
   gather_facts: false
   roles:
     - fastapi
+
+- name: Configure reverse proxy VM
+  hosts: proxy
+  gather_facts: false
+  roles:
+    - nginx
