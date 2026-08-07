@@ -66,16 +66,30 @@ variable "api_machine_type" {
   default     = "e2-small"   # cost-optimised for dev/staging
 }
 
-variable "api_disk_size_gb" {
-  description = "Boot disk size in GB for the FastAPI VM."
-  type        = number
-  default     = 20
-}
-
 variable "api_port" {
   description = "Port that FastAPI/uvicorn listens on."
   type        = number
   default     = 8000
+}
+
+variable "api_disk_size_gb" {
+  description = "Boot disk size in GB."
+  type        = number
+  default     = 20
+}
+
+# ── Reverse proxy ──────────────────────────────────────────────────────────────────────────────
+
+variable "proxy_machine_type" {
+  description = "Machine type for the Nginx reverse proxy VM."
+  type        = string
+  default     = "e2-micro"
+}
+
+variable "proxy_disk_size_gb" {
+  description = "Boot disk size in GB for the proxy VM."
+  type        = number
+  default     = 10
 }
 
 # ── MQTT broker ───────────────────────────────────────────────────────────────
