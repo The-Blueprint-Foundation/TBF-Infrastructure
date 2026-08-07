@@ -11,3 +11,5 @@
 *.code-workspace
 #Ignored output files
 output_ignore/
+#Ignore PNG files
+*.png

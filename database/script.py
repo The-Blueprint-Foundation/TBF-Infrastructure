@@ -1,4 +1,4 @@
-import datetime, random, csv, sys, getopt 
+import datetime, random, csv, sys, getopt, hashlib, struct, pytz
 from typing import override
 from dateutil import relativedelta
 from random_word import RandomWords  # pyright: ignore[reportMissingTypeStubs]
@@ -16,6 +16,7 @@ Gresham_Coordinate_Range = [
     (45.480_000, -122.390_000)  #SE OF GRESHAM
 ]
 
+Sensor_Count:int = 1
 
 class fake_sensor():
     """fake_sensor class to hold the information for a fake sensor
@@ -24,8 +25,8 @@ class fake_sensor():
     Attributes:
         sensor_name             (str)                           : Name of sensor, for identification purposes
         reading_id_count        (int)                           : Integer count of each hourly row data
-        sensor_id               (int)                           : Unique ID of sensor given hash of name
-        location_id             (int)                           : Unique ID of sensor given hash of latitude/longitude
+        sensor_id               (str)                           : Unique ID of sensor given hash of name && base-16 hex encoding
+        location_id             (str)                           : Unique ID of sensor given hash of latitude/longitude && base-16 hex encoding
         sensor_city             (str)                           : City for quick identification of latitude/longitude
         sensor_latt             (float)                         : Longitude location of sensor
         sensor_long             (float)                         : Latitude location of sensor
@@ -47,9 +48,10 @@ class fake_sensor():
         timestampz_str          : "%y-%m-%d %X%z"               : String expression for datetime representation for timestampz data type in postgresql
     """    
     sensor_name: str
+    sensor_num : int #CHANGED
     reading_id_count: int
-    sensor_id  : int
-    location_id: int
+    sensor_id  : str 
+    location_id: str 
     sensor_city: str
     sensor_latt: float
     sensor_long: float
@@ -69,7 +71,11 @@ class fake_sensor():
     date_str = '%x'
     time_str = '%X%:z'
     id_date_str = '%d-%m-%y (%j)'
-    timestampz_str = '%y-%m-%d %X%z'
+    #Timestampz should be of form year-month-day hour-minute-second-timezone
+    timestampz_str = '%m-%d-%y %X%z' #CHANGED
+    reading_id_str = '0%m%d%y%H00' #CHANGED
+
+
     def __init__(self, loc : tuple[str,str,float,float], data : list[list[list[float]]], start : datetime.date, end: datetime.date, length: int) -> None:
         """__init__ Create sensor given generated data
 
@@ -82,15 +88,20 @@ class fake_sensor():
         :param int length: timespan of given dates, as an integer
         """
         random.seed()
+        global Sensor_Count
         start_of_day = datetime.time(hour=0,minute=0)
 
         self.sensor_name = loc[0]
+        self.sensor_num = Sensor_Count
+        Sensor_Count += 1
         self.reading_id_count = 0
-        self.sensor_id   = hash(self.sensor_name)
+        sensor_bytes     = struct.pack('f',hash(self.sensor_name))
+        self.sensor_id   = (hashlib.md5(sensor_bytes)).hexdigest()
         self.sensor_city = loc[1]
         self.sensor_latt = loc[2]
         self.sensor_long = loc[3]
-        self.location_id = hash(self.sensor_latt + self.sensor_long)
+        location_bytes   = struct.pack('f', hash(self.sensor_latt + self.sensor_long))
+        self.location_id = (hashlib.md5(location_bytes)).hexdigest()
 
         self.data = data.copy()
 
@@ -102,8 +113,8 @@ class fake_sensor():
         self.locations_dict.append(self.gen_loc_dict())
         self.sensors_dict.append(self.gen_sensors_dict())
         
-        self.date_start = datetime.datetime.combine(start,start_of_day)
-        self.date_end = datetime.datetime.combine(end,start_of_day)
+        self.date_start = pytz.utc.localize(datetime.datetime.combine(start,start_of_day))
+        self.date_end = pytz.utc.localize(datetime.datetime.combine(end,start_of_day))
         self.dates_length = length
         self.table = Texttable().header(["DATE", "PM1", "PM2.5", "PM10", "TEMPERATURE (F)", "HUMIDITY"])
         self.__set_data_rows()
@@ -126,6 +137,10 @@ class fake_sensor():
                 temp    = lists[3]
                 humid   = lists[4]
                 _ = self.table.add_row((date.strftime(self.date_table_str), pm1, pm2_5, pm10, temp, humid))
+                
+                reading_id_datetime = date.strftime(self.reading_id_str)
+                reading_id_num      = str(self.sensor_num)
+                self.reading_id_count = int(reading_id_num + reading_id_datetime)
                 current_hour: list[dict[str,str | float]] = self.gen_sensor_readings(lists, current_date)
                 self.sensor_readings_dict.extend(current_hour)
                 self.data_dict.append( dict([
@@ -158,9 +173,9 @@ class fake_sensor():
         location_id = self.location_id
         name        = self.sensor_name
         latitude    = self.sensor_latt
-        longitude       = self.sensor_long   
-        neighborhood   = self.sensor_city
-        indoor          = False
+        longitude   = self.sensor_long   
+        neighborhood= self.sensor_city
+        indoor      = False
         return dict([
                     (str("location_id"), location_id),
                     (str("name"), name),
@@ -242,6 +257,7 @@ class fake_sensor():
     def get_name(self)->str:
         """ :return str: returns sensor name """
         return self.sensor_name
+
 
     @override
     def __str__(self)->str:
