@@ -1,6 +1,0 @@
--- Teardown script for the sensor monitoring schema
--- Drops tables in reverse dependency order (children before parents)
-
-DROP TABLE IF EXISTS sensor_readings;
-DROP TABLE IF EXISTS sensors;
-DROP TABLE IF EXISTS locations;
