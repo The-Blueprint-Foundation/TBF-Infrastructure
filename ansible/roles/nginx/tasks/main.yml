@@ -1,0 +1,93 @@
+---
+# ansible/roles/nginx/tasks/main.yml
+
+# ── Fetch backend VM IPs from instance metadata ───────────────────────────────
+
+- name: Fetch FastAPI internal IP from instance metadata
+  ansible.builtin.command:
+    cmd: >
+      curl -sf -H "Metadata-Flavor: Google"
+      http://metadata.google.internal/computeMetadata/v1/instance/attributes/fastapi-internal-ip
+  register: fastapi_ip_result
+  changed_when: false
+
+- name: Set fastapi_internal_ip fact
+  ansible.builtin.set_fact:
+    fastapi_internal_ip: "{{ fastapi_ip_result.stdout }}"
+
+- name: Fetch MQTT internal IP from instance metadata
+  ansible.builtin.command:
+    cmd: >
+      curl -sf -H "Metadata-Flavor: Google"
+      http://metadata.google.internal/computeMetadata/v1/instance/attributes/mqtt-internal-ip
+  register: mqtt_ip_result
+  changed_when: false
+
+- name: Set mqtt_internal_ip fact
+  ansible.builtin.set_fact:
+    mqtt_internal_ip: "{{ mqtt_ip_result.stdout }}"
+
+- name: Fetch FastAPI port from instance metadata
+  ansible.builtin.command:
+    cmd: >
+      curl -sf -H "Metadata-Flavor: Google"
+      http://metadata.google.internal/computeMetadata/v1/instance/attributes/fastapi-port
+  register: fastapi_port_result
+  changed_when: false
+
+- name: Set fastapi_port fact
+  ansible.builtin.set_fact:
+    fastapi_port: "{{ fastapi_port_result.stdout }}"
+
+- name: Fetch MQTT port from instance metadata
+  ansible.builtin.command:
+    cmd: >
+      curl -sf -H "Metadata-Flavor: Google"
+      http://metadata.google.internal/computeMetadata/v1/instance/attributes/mqtt-port
+  register: mqtt_port_result
+  changed_when: false
+
+- name: Set mqtt_port fact
+  ansible.builtin.set_fact:
+    mqtt_port: "{{ mqtt_port_result.stdout }}"
+
+# ── Install Nginx and stream module ───────────────────────────────────────────
+
+- name: Install Nginx and stream module
+  ansible.builtin.apt:
+    name:
+      - nginx
+      - libnginx-mod-stream
+    state: present
+  become: true
+
+- name: Remove default Nginx site
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  become: true
+  notify: Restart nginx
+
+# ── Configure Nginx ───────────────────────────────────────────────────────────
+# A single nginx.conf template replaces the default entirely.
+# This is appropriate since the proxy VM is fully managed by Ansible
+# and its complete configuration is known and fixed.
+
+- name: Template nginx.conf
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Restart nginx
+
+# ── Ensure Nginx is running ───────────────────────────────────────────────────
+
+- name: Ensure Nginx is enabled and running
+  ansible.builtin.systemd:
+    name: nginx
+    enabled: true
+    state: started
+  become: true
