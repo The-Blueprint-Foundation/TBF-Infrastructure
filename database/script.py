@@ -175,14 +175,12 @@ class fake_sensor():
         latitude    = self.sensor_latt
         longitude   = self.sensor_long   
         neighborhood= self.sensor_city
-        indoor      = False
         return dict([
                     (str("location_id"), location_id),
                     (str("name"), name),
                     (str("latitude"), latitude),
                     (str("longitude"), longitude),
-                    (str("neighborhood"), neighborhood),
-                    (str("indoor"), indoor)
+                    (str("neighborhood"), neighborhood)
                     ])
 
     def gen_sensors_dict(self)->dict[str, str | int]:
@@ -200,7 +198,9 @@ class fake_sensor():
                     (str("sensor_id"), sensor_id),
                     (str("location_id"),location_id),
                     (str("name"),name),
-                    (str("status"),status)
+                    (str("status"),status),
+                    (str("extrnl_id"), str("fake")),
+                    (str("extrnl_source"), str("synthetic"))
                     ])
 
     def gen_sensor_readings(self, hour: list[float], time: datetime.datetime)->list[dict[str,str | float]]:
@@ -212,26 +212,31 @@ class fake_sensor():
         :param datetime.datetime time: Datetime object to get timestampz string
         :return list[dict[str,str | float]]: List of sensor_readings rows as a list of dictionary
         """
-        #"reading_id", "sensor_id", "measurement_type", "unit", "value", "recorded_at", "quality_flag"
+        #"reading_id", "sensor_id", "recorded at" "pm1" "pm25" "pm10" "temp" "humid" "pressure"
+        # '
         readings: list[dict[str,str | float]] = []
         current_reading_id = self.reading_id_count
         sensor_id = self.sensor_id
-        measurement_types = ["pm1", "pm2.5", "pm10", "Temperature", "Humidity"]
-        units = ["Micrograms per cubic meter", "Micrograms per cubic meter","Micrograms per cubic meter","Fahrenheit", "Relative Humidity (Percentage)"]
-        #value = hour[type]
         recorded_at = time.strftime(self.timestampz_str)
+        pm1   = hour[0]
+        pm2_5 = hour[1]
+        pm10  = hour[2]
+        temp  = hour[3]
+        humid = hour[4]
+        pressure = tack_on_pressure()
         quality_flag = "Good"
-        for i in range(len(hour)):
-            readings.append(   dict([
-                                    (str("reading_id"), current_reading_id),
+        readings.append(    dict([
                                     (str("sensor_id"), sensor_id),
-                                    (str("measurement_type"), measurement_types[i]),
-                                    (str("unit"), units[i]),
-                                    (str("value"), hour[i]),
+                                    (str("reading_id"), current_reading_id),
                                     (str("recorded_at"), recorded_at),
+                                    (str("pm1_0"), pm1),
+                                    (str("pm2_5"), pm2_5),
+                                    (str("pm10"), pm10),
+                                    (str("temperature"), temp),
+                                    (str("humidity"), humid),
+                                    (str("pressure"), pressure),
                                     (str("quality_flag"), quality_flag)
-                                    ]))
-            current_reading_id += 1
+                                ]))
         return readings
 
     def get_table(self)->str | None:
@@ -258,7 +263,6 @@ class fake_sensor():
         """ :return str: returns sensor name """
         return self.sensor_name
 
-
     @override
     def __str__(self)->str:
         """ Utilizes texttable module to print a small card containing location / id information of sensor, and table containing all data
@@ -282,6 +286,12 @@ class fake_sensor():
 
 #global list of sensors, used for efficiency sake
 sensors: list[fake_sensor]
+
+def tack_on_pressure()->float:
+    """tack_on_pressure return a random pressure, was not part of original schema and I'm too lazy...
+    :return float: random number in range 
+    """
+    return random.uniform(29.80, 30.50)
 
 def get_real_sensor_data(sensor_name: str)->list[list[float]]:
     """get_sensor_data placeholder to grab the data
@@ -518,7 +528,7 @@ def create_locations_csv(sensors: list[fake_sensor], filename: str)->None:
     :param list[fake_sensor] sensors: List of sensors from which to draw from
     :param str filename: Name of file suffix to write csv data
     """    
-    titles = ["location_id", "name", "latitude", "longitude", "neighborhood", "indoor"]
+    titles = ["location_id", "name", "latitude", "longitude", "neighborhood"]
     with open("locations_" + filename, 'w') as file:
         writer = csv.DictWriter(file, fieldnames=titles)
         writer.writeheader()
@@ -534,7 +544,7 @@ def create_sensors_csv(sensors: list[fake_sensor], filename: str)->None:
     :param list[fake_sensor] sensors: List of sensors from which to draw from
     :param str filename: Name of file suffix to write csv data
     """    
-    titles = ["sensor_id", "location_id", "name", "status"]
+    titles = ["sensor_id", "location_id", "name", "status", "extrnl_id","extrnl_source" ]
     with open("sensors_" + filename, 'w') as file:
         writer = csv.DictWriter(file, fieldnames=titles)
         writer.writeheader()
@@ -550,7 +560,7 @@ def create_sensor_readings_csv(sensors: list[fake_sensor], filename: str)->None:
     :param list[fake_sensor] sensors: List of fake sensors from which to write csv data
     :param str filename: Name of file suffix to write csv data
     """    
-    titles = ["reading_id", "sensor_id", "measurement_type", "unit", "value", "recorded_at", "quality_flag"]
+    titles = ["reading_id", "sensor_id", "recorded_at", "pm1_0", "pm2_5", "pm10", "temperature", "humidity", "pressure", "quality_flag"]
     with open("sensor_readings_" + filename, 'w') as file:
         writer = csv.DictWriter(file, fieldnames=titles)
         writer.writeheader()
