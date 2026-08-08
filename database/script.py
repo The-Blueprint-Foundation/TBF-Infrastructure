@@ -199,7 +199,7 @@ class fake_sensor():
                     (str("location_id"),location_id),
                     (str("name"),name),
                     (str("status"),status),
-                    (str("extrnl_id"), str("fake")),
+                    (str("extrnl_id"), str(random.random())),
                     (str("extrnl_source"), str("synthetic"))
                     ])
 

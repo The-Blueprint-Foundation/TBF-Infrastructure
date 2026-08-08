@@ -13,3 +13,5 @@
 output_ignore/
 #Ignore PNG files
 *.png
+sql.env
+
