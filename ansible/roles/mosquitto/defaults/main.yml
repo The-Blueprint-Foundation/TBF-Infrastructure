@@ -2,8 +2,6 @@
 # ansible/roles/mosquitto/defaults/main.yml
 
 mqtt_port: 1883
-mqtt_persistence_location: /var/lib/mosquitto/
-mqtt_log_dest: /var/log/mosquitto/mosquitto.log
 
 # Python packages are intentionally absent here — they are managed by each
 # component's requirements.txt and installed during initial setup.
