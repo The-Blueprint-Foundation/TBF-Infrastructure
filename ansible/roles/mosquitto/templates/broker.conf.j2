@@ -1,0 +1,7 @@
+# /etc/mosquitto/conf.d/broker.conf
+# Managed by Ansible — do not edit manually.
+
+listener {{ mqtt_port }} 0.0.0.0
+allow_anonymous true
+persistence true
+log_type all

@@ -66,16 +66,30 @@ variable "api_machine_type" {
   default     = "e2-small"   # cost-optimised for dev/staging
 }
 
-variable "api_disk_size_gb" {
-  description = "Boot disk size in GB for the FastAPI VM."
-  type        = number
-  default     = 20
-}
-
 variable "api_port" {
   description = "Port that FastAPI/uvicorn listens on."
   type        = number
   default     = 8000
+}
+
+variable "api_disk_size_gb" {
+  description = "Boot disk size in GB."
+  type        = number
+  default     = 20
+}
+
+# ── Reverse proxy ──────────────────────────────────────────────────────────────────────────────
+
+variable "proxy_machine_type" {
+  description = "Machine type for the Nginx reverse proxy VM."
+  type        = string
+  default     = "e2-micro"
+}
+
+variable "proxy_disk_size_gb" {
+  description = "Boot disk size in GB for the proxy VM."
+  type        = number
+  default     = 10
 }
 
 # ── MQTT broker ───────────────────────────────────────────────────────────────
@@ -128,4 +142,51 @@ variable "db_password" {
   description = "Password for the application DB user. Supply via TF_VAR or Secret Manager."
   type        = string
   sensitive   = true
+}
+
+variable "api_db_user" {
+  description = "PostgreSQL user for the FastAPI application (read-only)."
+  type        = string
+  default     = "api_reader"
+}
+
+variable "api_db_password" {
+  description = "Password for the API DB user. Supply via TF_VAR or Secret Manager."
+  type        = string
+  sensitive   = true
+}
+
+variable "subscriber_db_user" {
+  description = "PostgreSQL user for the MQTT subscriber (write-only)."
+  type        = string
+  default     = "mqtt_writer"
+}
+
+variable "subscriber_db_password" {
+  description = "Password for the subscriber DB user. Supply via TF_VAR or Secret Manager."
+  type        = string
+  sensitive   = true
+}
+
+# ── Publisher secrets ────────────────────────────────────────────────────────────────────────────────
+# Secrets for data source publisher integrations. Each is stored in GCP instance
+# metadata on the MQTT VM and rendered into the publisher's .env file by Ansible.
+# Add a new sensitive variable per publisher API key or secret as needed.
+#
+# Supply values via environment variables to keep them out of tfvars:
+#   export TF_VAR_purpleair_api_key="your-api-key"
+#
+# Example — PurpleAir publisher:
+# variable "purpleair_api_key" {
+#   description = "API key for the PurpleAir data publisher."
+#   type        = string
+#   sensitive   = true
+#   default     = ""   # empty default prevents errors if publisher is not in use
+# }
+
+variable "quantaq_api_key" {
+  description = "API key for access to the Blueprint Foundations QuantAQ sensor data."
+  type        = string
+  sensitive   = true
+  default     = ""
 }

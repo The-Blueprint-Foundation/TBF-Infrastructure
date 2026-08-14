@@ -34,6 +34,7 @@ resource "google_project_iam_custom_role" "tunnel_user" {
   permissions = [
     "resourcemanager.projects.get",
     "resourcemanager.projects.getIamPolicy",
+    "compute.instances.setMetadata"
   ]
 }
 
@@ -71,6 +72,12 @@ resource "google_compute_instance" "api_vm" {
   zone         = var.zone
   tags         = ["fastapi-vm"]
 
+  lifecycle {
+    ignore_changes = [
+      metadata["ssh-keys"],
+    ]
+  }
+
   boot_disk {
     initialize_params {
       image = var.vm_image
@@ -81,23 +88,6 @@ resource "google_compute_instance" "api_vm" {
 
   network_interface {
     subnetwork = google_compute_subnetwork.subnet.id
-    # No access_config block -> no public IP; traffic exits via Cloud NAT.
-    #
-    # When ready for external access, uncomment the block below and provision
-    # a google_compute_address resource for a stable public IP:
-    #
-    # resource "google_compute_address" "api_static_ip" {
-    #   name   = "${var.app_name}-api-ip"
-    #   region = var.region
-    # }
-    #
-    # access_config {
-    #   nat_ip = google_compute_address.api_static_ip.address
-    # }
-    #
-    # NOTE: Also uncomment the allow_api_external firewall rule in
-    # networking.tf, and update the web app team's API base URL to point
-    # at this static IP.
   }
 
   service_account {
@@ -107,15 +97,12 @@ resource "google_compute_instance" "api_vm" {
 
   metadata = {
     # Passes DB connection info as instance metadata for the startup script to read.
+    # Subscriber credentials are intentionally absent.
     db-host     = google_sql_database_instance.postgres.private_ip_address
     db-name     = var.db_name
-    db-user     = var.db_user
-    db-password = var.db_password
+    db-user     = var.api_db_user
+    db-password = var.api_db_password
   }
-
-  metadata_startup_script = templatefile("${path.module}/scripts/api_startup.sh", {
-    api_port = tostring(var.api_port)
-  })
 
   # Ensure SQL instance is ready before the VM boots so the startup script
   # can reach the database during first-run setup.

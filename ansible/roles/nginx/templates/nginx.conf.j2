@@ -1,0 +1,81 @@
+# /etc/nginx/nginx.conf
+# Managed by Ansible — do not edit manually.
+# This file replaces the default Nginx config entirely since the proxy VM
+# is single-purpose and its full configuration is known and managed here.
+#
+# Routing:
+#   HTTP  :80   /api/*  → FastAPI VM :{{ fastapi_port }}  (HTTP proxy)
+#   TCP   :{{ mqtt_port }}          → MQTT broker VM :{{ mqtt_port }}  (stream proxy)
+#
+#   Root path (/) intentionally returns 404 — reserved for a future frontend
+#   to be served via CDN or other mechanism by a downstream team.
+
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+    worker_connections 768;
+}
+
+# ── HTTP — FastAPI reverse proxy ──────────────────────────────────────────────
+
+http {
+    sendfile on;
+    tcp_nopush on;
+    types_hash_max_size 2048;
+
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    access_log /var/log/nginx/access.log;
+    error_log  /var/log/nginx/error.log;
+
+    gzip on;
+
+    server {
+        listen 80;
+        server_name _;
+
+        # ── FastAPI API ───────────────────────────────────────────────────────
+        # Strips the /api prefix before forwarding to FastAPI, which handles
+        # its own internal routing via --root-path /api in uvicorn.
+        location /api/ {
+            proxy_pass http://{{ fastapi_internal_ip }}:{{ fastapi_port }}/;
+            proxy_set_header Host              $host;
+            proxy_set_header X-Real-IP         $remote_addr;
+            proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            proxy_connect_timeout 10s;
+            proxy_read_timeout    30s;
+        }
+
+        # ── Root path ─────────────────────────────────────────────────────────
+        # Intentionally unhandled — reserved for a future frontend.
+        location / {
+            return 404;
+        }
+    }
+}
+
+# ── TCP stream — MQTT reverse proxy ──────────────────────────────────────────
+# Operates at the TCP level, outside the http {} block.
+# External IoT devices connect to this VM's public IP on port {{ mqtt_port }};
+# Nginx forwards the raw TCP stream to the MQTT broker VM internally.
+
+stream {
+    upstream mqtt_broker {
+        server {{ mqtt_internal_ip }}:{{ mqtt_port }};
+    }
+
+    server {
+        listen {{ mqtt_port }};
+        proxy_pass mqtt_broker;
+
+        # Generous timeout to accommodate long-lived MQTT connections.
+        proxy_connect_timeout 10s;
+        proxy_timeout         3600s;
+    }
+}

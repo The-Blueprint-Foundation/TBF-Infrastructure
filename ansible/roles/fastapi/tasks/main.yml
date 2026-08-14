@@ -1,0 +1,171 @@
+---
+# ansible/roles/fastapi/tasks/main.yml
+# Mirrors the structure of the mosquitto role — sets up the application
+# directory, venv, .env file, and systemd service unit.
+#
+# Privilege model:
+#   - System user creation     → become: true (root)
+#   - Directory creation       → become: true (root), owned by fastapi_user
+#   - Venv creation and pip    → become: true, become_user: fastapi_user
+#   - .env file                → become: true, become_user: fastapi_user
+#   - systemd unit file        → become: true (root)
+#   - systemd enable           → become: true (root)
+
+# ── Install base packages ───────────────────────────
+- name: Install base packages
+  ansible.builtin.apt:
+    name: 
+      - python3
+      - python3-pip
+      - python3-venv
+      - git
+      - curl
+    state: present
+  become: true
+
+# ── Fetch API DB connection information from instance metadata ───────────────────────────
+# Subscriber credentials are intentionally absent from this VM.
+
+- name: Fetch DB host from instance metadata
+  ansible.builtin.command:
+    cmd: >
+      curl -sf -H "Metadata-Flavor: Google"
+      http://metadata.google.internal/computeMetadata/v1/instance/attributes/db-host
+  register: db_host_result
+  changed_when: false
+
+- name: Set db_host fact
+  ansible.builtin.set_fact:
+    db_host: "{{ db_host_result.stdout }}"
+
+- name: Fetch DB name from instance metadata
+  ansible.builtin.command:
+    cmd: >
+      curl -sf -H "Metadata-Flavor: Google"
+      http://metadata.google.internal/computeMetadata/v1/instance/attributes/db-name
+  register: db_name_result
+  changed_when: false
+
+- name: Set db_name fact
+  ansible.builtin.set_fact:
+    db_name: "{{ db_name_result.stdout }}"
+
+- name: Fetch DB user from instance metadata
+  ansible.builtin.command:
+    cmd: >
+      curl -sf -H "Metadata-Flavor: Google"
+      http://metadata.google.internal/computeMetadata/v1/instance/attributes/db-user
+  register: api_db_user_result
+  changed_when: false
+
+- name: Set db_user fact
+  ansible.builtin.set_fact:
+    api_db_user: "{{ api_db_user_result.stdout }}"
+
+- name: Fetch DB password from instance metadata
+  ansible.builtin.command:
+    cmd: >
+      curl -sf -H "Metadata-Flavor: Google"
+      http://metadata.google.internal/computeMetadata/v1/instance/attributes/db-password
+  register: api_db_password_result
+  changed_when: false
+  no_log: true
+
+- name: Set db_password fact
+  ansible.builtin.set_fact:
+    api_db_password: "{{ api_db_password_result.stdout }}"
+  no_log: true
+
+# ── Application user and directory ────────────────────────────────────────────
+
+- name: Create fastapi-worker system user
+  ansible.builtin.user:
+    name: "{{ fastapi_user }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+  become: true
+
+- name: Create application directory
+  ansible.builtin.file:
+    path: "{{ fastapi_app_dir }}"
+    state: directory
+    owner: "{{ fastapi_user }}"
+    group: "{{ fastapi_user }}"
+    mode: "0755"
+  become: true
+
+# ── Perform Initial Git clone and initialize application ────────────────────────────────────────────
+
+- name: Clone or pull latest FastAPI code
+  ansible.builtin.git:
+    repo: "{{ fastapi_repo_url }}"
+    dest: "{{ fastapi_app_dir }}"
+    version: "{{ fastapi_repo_branch }}"
+    force: true
+  become: true
+  become_user: "{{ fastapi_user }}"
+  register: git_result
+
+- name: Create Python virtual environment
+  ansible.builtin.command:
+    cmd: python3 -m venv {{ fastapi_venv }}
+    creates: "{{ fastapi_venv }}/bin/activate"
+  become: true
+  become_user: "{{ fastapi_user }}"
+
+- name: Upgrade pip in venv
+  ansible.builtin.pip:
+    name: pip
+    state: latest
+    virtualenv: "{{ fastapi_venv }}"
+  become: true
+  become_user: "{{ fastapi_user }}"
+
+- name: Check if requirements.txt exists
+  ansible.builtin.stat:
+    path: "{{ fastapi_app_dir }}/requirements.txt"
+  register: fastapi_requirements_file
+
+- name: Install FastAPI dependencies
+  ansible.builtin.pip:
+    requirements: "{{ fastapi_app_dir }}/requirements.txt"
+    virtualenv: "{{ fastapi_venv }}"
+    state: present
+  become: true
+  become_user: "{{ fastapi_user }}"
+  when: git_result.changed and fastapi_requirements_file.stat.exists
+
+# ── Environment file ──────────────────────────────────────────────────────────
+ 
+- name: Template FastAPI .env file
+  ansible.builtin.template:
+    src: fastapi.env.j2
+    dest: "{{ fastapi_app_dir }}/.env"
+    owner: "{{ fastapi_user }}"
+    group: "{{ fastapi_user }}"
+    mode: "0600"
+  become: true
+
+# ── systemd service ───────────────────────────────────────────────────────────
+
+- name: Template FastAPI systemd service unit
+  ansible.builtin.template:
+    src: fastapi.service.j2
+    dest: /etc/systemd/system/fastapi.service
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+- name: Check if FastAPI entrypoint exists
+  ansible.builtin.stat:
+    path: "{{ fastapi_app_dir }}/main.py"
+  register: fastapi_script
+
+- name: Restart FastAPI service if code changed
+  ansible.builtin.systemd:
+    name: fastapi
+    state: restarted
+  become: true
+  when: fastapi_script.stat.exists

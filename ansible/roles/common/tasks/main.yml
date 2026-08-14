@@ -1,0 +1,29 @@
+---
+# ansible/roles/common/tasks/main.yml
+# Tasks applied to every VM regardless of role.
+
+#---------------------------------------------------------------------------------------------------------
+# The `become: true` directives throughout the tasks tell Ansible to run those tasks as root via `sudo`, 
+# but that only works if the user Ansible connects as actually has passwordless 'sudo' access on the VM.
+#
+# The reason it wasn't explicitly set up is that **Debian 12 (your VM image) grants the first user created 
+# via `gcloud compute ssh` passwordless sudo automatically** through GCP's OS Login or the default 
+# `google-sudoers` configuration that gets applied to GCP VMs. So in practice it just works — but it is 
+# implicit rather than explicit, which is a reasonable thing to flag.
+#
+# If a different base image is ever used or OS Login is disabled, you'd need to uncomment the below task
+#---------------------------------------------------------------------------------------------------------
+#- name: Ensure ansible user has passwordless sudo
+#  ansible.builtin.lineinfile:
+#    path: /etc/sudoers.d/ansible
+#    line: "{{ ansible_user }} ALL=(ALL) NOPASSWD:ALL"
+#    create: true
+#    mode: "0440"
+#  become: true
+#........................................................
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  become: true

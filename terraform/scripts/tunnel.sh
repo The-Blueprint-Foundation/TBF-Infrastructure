@@ -8,13 +8,15 @@
 #   Local port 8000  →  fastapi-vm:8000     (FastAPI web server)
 #   Local port 5432  →  SQL_IP:5432         (Cloud SQL PostgreSQL / pgAdmin)
 #   Local port 1883  →  mqtt-vm:1883        (Mosquitto broker)
+#   Local port 8080  →  proxy-vm:80         (Nginx reverse proxy)
 #
 # FastAPI and PostgreSQL are forwarded via the FastAPI VM.
 # MQTT is forwarded via the MQTT broker VM (separate IAP tunnel session).
-# Both tunnel sessions are opened in the background and cleaned up on Ctrl-C.
+# Nginx proxy is forwarded via the proxy VM (separate IAP tunnel session).
+# All tunnel sessions are opened in the background and cleaned up on Ctrl-C.
 #
 # Usage:
-#   bash scripts/tunnel.sh <PROJECT_ID> <ZONE> <API_VM> <MQTT_VM> <SQL_IP> <API_PORT>
+#   bash scripts/tunnel.sh <PROJECT_ID> <ZONE> <API_VM> <MQTT_VM> <PROXY_VM> <SQL_IP> <FASTAPI_PORT>
 #
 # Or fill in DEFAULTS below and just run: bash scripts/tunnel.sh
 #
@@ -22,6 +24,9 @@
 #   - gcloud CLI installed and authenticated (gcloud auth login)
 #   - IAP API enabled: gcloud services enable iap.googleapis.com
 #   - Your Google account added to var.iap_tunnel_users in terraform.tfvars
+#
+# NOTE: Run tofu apply after any VM replacement — IAP IAM bindings are
+# instance-level and are destroyed along with the VM they're attached to.
 ###############################################################################
 
 set -euo pipefail
@@ -29,14 +34,16 @@ set -euo pipefail
 # ── Arguments / defaults ──────────────────────────────────────────────────────
 PROJECT_ID="${1:-YOUR_PROJECT_ID}"
 ZONE="${2:-us-central1-a}"
-API_VM="${3:-YOUR_API_VM_NAME}"
+API_VM="${3:-YOUR_FASTAPI_VM_NAME}"
 MQTT_VM="${4:-YOUR_MQTT_VM_NAME}"
-SQL_IP="${5:-YOUR_SQL_PRIVATE_IP}"
-API_PORT="${6:-8000}"
+PROXY_VM="${5:-YOUR_PROXY_VM_NAME}"
+SQL_IP="${6:-YOUR_SQL_PRIVATE_IP}"
+FASTAPI_PORT="${7:-8000}"
 
-LOCAL_API_PORT="${API_PORT}"
+LOCAL_FASTAPI_PORT="${FASTAPI_PORT}"
 LOCAL_PG_PORT="5432"
 LOCAL_MQTT_PORT="1883"
+LOCAL_PROXY_PORT="8080"
 
 # ── Validate gcloud is present ────────────────────────────────────────────────
 if ! command -v gcloud &>/dev/null; then
@@ -44,7 +51,7 @@ if ! command -v gcloud &>/dev/null; then
   exit 1
 fi
 
-# ── Cleanup handler – kills both background tunnel sessions on exit ────────────
+# ── Cleanup handler – kills all background tunnel sessions on exit ─────────────
 PIDS=()
 cleanup() {
   echo ""
@@ -57,9 +64,10 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "==> Opening IAP tunnels"
-echo "    FastAPI : http://localhost:${LOCAL_API_PORT}"
+echo "    FastAPI : http://localhost:${LOCAL_FASTAPI_PORT}"
 echo "    Postgres: localhost:${LOCAL_PG_PORT}  (connect pgAdmin here)"
 echo "    MQTT    : localhost:${LOCAL_MQTT_PORT}  (broker / MQTT client)"
+echo "    Proxy   : http://localhost:${LOCAL_PROXY_PORT}  (Nginx reverse proxy)"
 echo ""
 echo "    Press Ctrl-C to close all tunnels."
 echo ""
@@ -71,8 +79,9 @@ gcloud compute ssh "${API_VM}" \
   --tunnel-through-iap \
   -- \
   -N \
-  -L "${LOCAL_API_PORT}:localhost:${API_PORT}" \
-  -L "${LOCAL_PG_PORT}:${SQL_IP}:5432" &
+  -L "${LOCAL_FASTAPI_PORT}:localhost:${FASTAPI_PORT}" \
+  -L "${LOCAL_PG_PORT}:${SQL_IP}:5432" \
+  -L "2222:localhost:22" &
 PIDS+=($!)
 
 # ── Tunnel 2: MQTT broker VM – forwards Mosquitto port ───────────────────────
@@ -82,8 +91,21 @@ gcloud compute ssh "${MQTT_VM}" \
   --tunnel-through-iap \
   -- \
   -N \
-  -L "${LOCAL_MQTT_PORT}:localhost:1883" &
+  -L "${LOCAL_MQTT_PORT}:localhost:1883" \
+  -L "2223:localhost:22" &
 PIDS+=($!)
 
-# Wait for both background jobs — script stays alive until Ctrl-C.
+# ── Tunnel 3: Proxy VM – forwards Nginx on a non-conflicting local port ───────
+# Uses local port 8080 to avoid conflict with any local HTTP server on port 80.
+gcloud compute ssh "${PROXY_VM}" \
+  --project="${PROJECT_ID}" \
+  --zone="${ZONE}" \
+  --tunnel-through-iap \
+  -- \
+  -N \
+  -L "${LOCAL_PROXY_PORT}:localhost:80" \
+  -L "2224:localhost:22" &
+PIDS+=($!)
+
+# Wait for all background jobs — script stays alive until Ctrl-C.
 wait

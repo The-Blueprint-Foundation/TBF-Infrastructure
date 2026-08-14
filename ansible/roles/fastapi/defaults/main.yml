@@ -1,0 +1,7 @@
+---
+# ansible/roles/fastapi/defaults/main.yml
+fastapi_port: 8000
+fastapi_workers: 2
+
+# Python packages are intentionally absent here — they are managed by the
+# repository's requirements.txt and installed during initial setup

@@ -1,0 +1,13 @@
+---
+# ansible/roles/fastapi/handlers/main.yml
+
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+
+- name: Restart fastapi
+  ansible.builtin.systemd:
+    name: fastapi
+    state: restarted
+  become: true

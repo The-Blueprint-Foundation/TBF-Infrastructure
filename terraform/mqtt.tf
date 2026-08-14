@@ -55,6 +55,12 @@ resource "google_compute_instance" "mqtt_vm" {
   zone         = var.zone
   tags         = ["mqtt-vm"]
 
+  lifecycle {
+    ignore_changes = [
+      metadata["ssh-keys"],
+    ]
+  }
+  
   boot_disk {
     initialize_params {
       image = var.vm_image
@@ -65,22 +71,6 @@ resource "google_compute_instance" "mqtt_vm" {
 
   network_interface {
     subnetwork = google_compute_subnetwork.subnet.id
-    # No access_config block -> no public IP; traffic exits via Cloud NAT.
-    #
-    # When ready for external access, uncomment the block below and provision
-    # a google_compute_address resource for a stable public IP:
-    #
-    # resource "google_compute_address" "mqtt_static_ip" {
-    #   name   = "${var.app_name}-mqtt-ip"
-    #   region = var.region
-    # }
-    #
-    # access_config {
-    #   nat_ip = google_compute_address.mqtt_static_ip.address
-    # }
-    #
-    # NOTE: Also uncomment the allow_mqtt_external firewall rule in
-    # networking.tf
   }
 
   service_account {
@@ -92,13 +82,16 @@ resource "google_compute_instance" "mqtt_vm" {
     # DB connection info available for the subscriber process you'll write.
     db-host     = google_sql_database_instance.postgres.private_ip_address
     db-name     = var.db_name
-    db-user     = var.db_user
-    db-password = var.db_password
-  }
+    db-user     = var.subscriber_db_user
+    db-password = var.subscriber_db_password
 
-  metadata_startup_script = templatefile("${path.module}/scripts/mqtt_startup.sh", {
-    mqtt_port = tostring(var.mqtt_port)
-  })
+    # Publisher secrets — add one entry per publisher API key or secret.
+    # Each key is fetched by Ansible and rendered into the publisher's .env file.
+    # Uncomment and duplicate this pattern for each publisher integration.
+    #
+    # purpleair-api-key = var.purpleair_api_key
+    quantaq-api-key = var.quantaq_api_key
+  }
 
   depends_on = [
     google_sql_database_instance.postgres,

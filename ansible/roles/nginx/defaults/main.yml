@@ -1,0 +1,4 @@
+---
+# ansible/roles/nginx/defaults/main.yml
+
+nginx_user: www-data   # Nginx's default user on Debian — no need to create it

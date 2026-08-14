@@ -1,0 +1,7 @@
+---
+# ansible/roles/mosquitto/defaults/main.yml
+
+mqtt_port: 1883
+
+# Python packages are intentionally absent here — they are managed by each
+# component's requirements.txt and installed during initial setup.
