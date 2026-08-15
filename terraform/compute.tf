@@ -100,8 +100,8 @@ resource "google_compute_instance" "api_vm" {
     # Subscriber credentials are intentionally absent.
     db-host     = google_sql_database_instance.postgres.private_ip_address
     db-name     = var.db_name
-    db-user     = var.api_db_user
-    db-password = var.api_db_password
+    db-user     = var.db_user
+    db-password = var.db_password
   }
 
   # Ensure SQL instance is ready before the VM boots so the startup script
