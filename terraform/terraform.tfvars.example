@@ -26,12 +26,8 @@ db_version         = "POSTGRES_16"
 db_tier            = "db-f1-micro"
 db_name            = "appdb"
 db_user            = "appuser"
-api_db_user        = "api_reader"
-subscriber_db_user = "mqtt_writer"
-# db_password, api_db_password, and subscriber_db_password are set via environment variable to keep it out of this file:
-#   export TF_VAR_db_password="your-secure-password" && \
-#   export TF_VAR_api_db_password="your-other-secure-password" && \
-#   export TF_VAR_subscriber_db_password="your-other-other-secure-password"
+# db_password is set via environment variable to keep it out of this file:
+#   export TF_VAR_db_password="your-secure-password"
 
 # IAP tunnel access – add your Google account(s) here
 # iap_tunnel_users = ["user:you@example.com"]
