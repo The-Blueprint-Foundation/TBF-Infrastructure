@@ -7,13 +7,34 @@ from texttable import Texttable  # pyright: ignore[reportMissingTypeStubs]
 placeholder: bool = True
 
 #Coordinate range of portland and gresham areas
-Portland_Coordinate_Range = [
-    (45.550_000, -122.550_000), #NW OF EAST
-    (45.470_000, -122.505_000)  #SE OF EAST
+
+Portland_Neighborhoods = [
+    (45.579_000, -122.737_000, "University Park"),
+    (45.525_280, -122.672_460, "Old Town Chinatown"),
+    (45.530_790, -122.660_650, "Lloyd District"),
+    (45.523_080, -122.502_860, "Glenfair"),
+    (45.583_000, -122.639_000, "Sunderland"),
+    (45.510_620, -122.537_680, "Mill Park"),
+    (45.586_600, -122.718_400, "Portsmouth")
 ]
-Gresham_Coordinate_Range = [
-    (45.530_000, -122.487_000), #NW OF GRESHAM
-    (45.480_000, -122.390_000)  #SE OF GRESHAM
+
+Gresham_Neighborhoods = [
+    (45.501_717, -122.420_652, "Central City"),
+    (45.505595, -122.499711, "Centennial"),
+    (45.479240, -122.430628, "Gresham Butte"),
+    (45.492720, -122.419723, "Historic Southeast"),
+    (45.480939, -122.413764, "Hogan Cedars"),
+    (45.494303, -122.452311, "Hollybrook"),
+    (45.482290, -122.384174, "Kelly Creek"),
+    (45.518025, -122.432468, "North Central"),
+    (45.545273, -122.466004, "North Gresham"),
+    (45.511725, -122.403712, "Northeast"), #Hard names to parse
+    (45.504133, -122.447750, "Northwest"),
+    (45.471960, -122.507003, "Pleasant Valley"),
+    (45.495506, -122.393746, "Powell Valley"),
+    (45.519170, -122.482806, "Rockwood"),
+    (45.478652, -122.463207, "Southwest"), #SERIOUSLY?
+    (45.534566, -122.489258, "Wilkes East")
 ]
 
 Sensor_Count:int = 1
@@ -321,26 +342,42 @@ def get_fake_sensor_loc(name: str)->tuple[str,str,float,float]:
     :param str name: Name of sensor to include in tuple
     :return tuple[str,str,float,float]: tuple consisting of name,city,latitude,longitude of fake sensor
     """
-    place                               = ""
-    ranges: list[tuple[float,float]]    = []
-    long                                = 0.0
-    latt                                = 0.0
-    g = str("Gresham")
-    p = str("East Portland")
-    
-    g_or_p = random.randint(0,1)
-    if g_or_p:
-        place = g
-        ranges = Gresham_Coordinate_Range
+    EMPTY=0
+    GRESHAM=0
+    PORTLAND=1
+    global Gresham_Neighborhoods, Portland_Neighborhoods
+    place   = ""
+    long    = 0.0
+    latt    = 0.0
+    g_len   = len(Gresham_Neighborhoods)
+    p_len   = len(Portland_Neighborhoods)
+    g_or_p  = random.randint(0,1)
+    tup_list: list[tuple[float,float, str]]
+    last_index : int
+
+    if (p_len == EMPTY or g_or_p == GRESHAM) and g_len != EMPTY: #If no more portland neighborhoods OR if rolled 0(GRESHAM) AND GRESHAM NOT EMPTY
+        tup_list = Gresham_Neighborhoods
+    elif (g_len == EMPTY or g_or_p == PORTLAND) and p_len != EMPTY: #If no more gresham neighborhoods OR if rolled 1 (Portland) AND PORTLAND NOT EMPTY
+        tup_list=Portland_Neighborhoods
     else:
-        place = p
-        ranges = Portland_Coordinate_Range
-    LEFTEST  = ranges[0][0]
-    RIGHTEST = ranges[1][0]
-    TOP      = ranges[0][1]
-    BOTTOM   = ranges[1][1]
-    latt = random.uniform(LEFTEST, RIGHTEST)
-    long = random.uniform(BOTTOM, TOP)
+        raise IndexError("No more neighborhoods in either city to choose from, error!")
+    last_index = len(tup_list) - 1
+    take_index = random.randint(0,last_index)
+    
+    print("LOGGING -> PORTLAND BEFORE")
+    print(Portland_Neighborhoods)
+    print("LOGGING -> GRESHAM BEFORE")
+    print(Gresham_Neighborhoods)
+
+    tup         = tup_list.pop(take_index)
+    latt        = tup[0]
+    long        = tup[1]
+    place       = tup[2]
+
+    print("LOGGING -> PORTLAND AFTER")
+    print(Portland_Neighborhoods)
+    print("LOGGING -> GRESHAM AFTER")
+    print(Gresham_Neighborhoods)
     return (name,place,latt,long)
 
 def get_temp(previous_value: float, month: int)->float:
@@ -753,6 +790,9 @@ def main()->None:
     before_months = argsList[0]
     after_months  = argsList[1]
     sensors_count = argsList[2]
+    if sensors_count > (len(Portland_Neighborhoods) + len(Gresham_Neighborhoods)):
+        print(f"***Note, chose more than available ({len(Portland_Neighborhoods) + len(Gresham_Neighborhoods)}) neighborhoods, only making maximum number***")
+        sensors_count = len(Portland_Neighborhoods) + len(Gresham_Neighborhoods)
     dates = get_date_range(before_months, after_months)
     generate_data(before=dates[0], today=dates[1], after=dates[2], number_sensors=sensors_count)
     if optionDict.get("debug"):
