@@ -143,26 +143,3 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
-
-# ── Publisher secrets ────────────────────────────────────────────────────────────────────────────────
-# Secrets for data source publisher integrations. Each is stored in GCP instance
-# metadata on the MQTT VM and rendered into the publisher's .env file by Ansible.
-# Add a new sensitive variable per publisher API key or secret as needed.
-#
-# Supply values via environment variables to keep them out of tfvars:
-#   export TF_VAR_purpleair_api_key="your-api-key"
-#
-# Example — PurpleAir publisher:
-# variable "purpleair_api_key" {
-#   description = "API key for the PurpleAir data publisher."
-#   type        = string
-#   sensitive   = true
-#   default     = ""   # empty default prevents errors if publisher is not in use
-# }
-
-variable "quantaq_api_key" {
-  description = "API key for access to the Blueprint Foundations QuantAQ sensor data."
-  type        = string
-  sensitive   = true
-  default     = ""
-}
