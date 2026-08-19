@@ -84,13 +84,6 @@ resource "google_compute_instance" "mqtt_vm" {
     db-name     = var.db_name
     db-user     = var.db_user
     db-password = var.db_password
-
-    # Publisher secrets — add one entry per publisher API key or secret.
-    # Each key is fetched by Ansible and rendered into the publisher's .env file.
-    # Uncomment and duplicate this pattern for each publisher integration.
-    #
-    # purpleair-api-key = var.purpleair_api_key
-    quantaq-api-key = var.quantaq_api_key
   }
 
   depends_on = [
