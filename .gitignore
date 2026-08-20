@@ -13,3 +13,6 @@ override.tf.json
 
 #Python venv addition
 .venv/
+
+#vscode
+.vscode/
