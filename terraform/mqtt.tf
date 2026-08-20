@@ -82,8 +82,15 @@ resource "google_compute_instance" "mqtt_vm" {
     # DB connection info available for the subscriber process you'll write.
     db-host     = google_sql_database_instance.postgres.private_ip_address
     db-name     = var.db_name
-    db-user     = var.db_user
-    db-password = var.db_password
+    db-user     = var.subscriber_db_user
+    db-password = var.subscriber_db_password
+
+    # Publisher secrets — add one entry per publisher API key or secret.
+    # Each key is fetched by Ansible and rendered into the publisher's .env file.
+    # Uncomment and duplicate this pattern for each publisher integration.
+    #
+    # purpleair-api-key = var.purpleair_api_key
+    quantaq-api-key = var.quantaq_api_key
   }
 
   depends_on = [

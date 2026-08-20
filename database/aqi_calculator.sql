@@ -103,6 +103,14 @@ WITH pm_avgs AS (
     SELECT
         s.sensor_id,
         s.name AS sensor_name,
+        s.location_id,
+        AVG(r.pm2_5) FILTER (WHERE r.recorded_at > now() - INTERVAL '24 hours') AS pm2_5_24hr_avg,
+        AVG(r.pm10)  FILTER (WHERE r.recorded_at > now() - INTERVAL '24 hours') AS pm10_24hr_avg
+    FROM air_quality.sensors s
+    LEFT JOIN air_quality.sensor_readings r
+        ON r.sensor_id = s.sensor_id
+       AND r.recorded_at > now() - INTERVAL '24 hours'
+    GROUP BY s.sensor_id, s.name, s.location_id
         l.latitude,
         l.longitude,
         AVG(r.pm2_5) FILTER (
@@ -127,6 +135,7 @@ aqi_calc AS (
     SELECT
         sensor_id,
         sensor_name,
+        location_id,
         latitude,
         longitude,
         pm2_5_24hr_avg,
@@ -138,6 +147,7 @@ aqi_calc AS (
 SELECT
     sensor_id,
     sensor_name,
+    location_id,
     latitude,
     longitude,
     pm2_5_24hr_avg,
@@ -150,6 +160,7 @@ SELECT
         WHEN COALESCE(pm2_5_aqi, -1) >= COALESCE(pm10_aqi, -1) THEN 'PM2.5'
         ELSE 'PM10'
     END AS main_pollutant,
+    air_quality.aqi_category(GREATEST(pm2_5_aqi, pm10_aqi)) AS aqi_category
     air_quality.aqi_category(
         GREATEST(pm2_5_aqi, pm10_aqi)
     ) AS aqi_category

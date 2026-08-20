@@ -11,6 +11,7 @@ CREATE TABLE air_quality.locations (
     name          VARCHAR(255) NOT NULL,
     latitude      DECIMAL(9, 6) NOT NULL,
     longitude     DECIMAL(9, 6) NOT NULL,
+    neighborhood  VARCHAR(255)
     neighborhood  VARCHAR(255),
     UNIQUE (name, latitude, longitude)
 );

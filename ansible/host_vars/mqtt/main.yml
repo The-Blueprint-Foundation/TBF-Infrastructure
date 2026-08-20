@@ -12,4 +12,21 @@ pipeline_repo_branch: "main"
 
 # Root directory where the full monorepo is cloned.
 pipeline_repo_dir: /opt/tbf-pipeline
+subscriber_dir: "{{ pipeline_repo_dir }}/subscriber"
+publishers_dir: "{{ pipeline_repo_dir }}/publishers"
+
+# Subscriber paths — point into the monorepo subdirectory.
+subscriber_venv: "{{ subscriber_dir }}/.venv"
+
+# ── Publisher paths ────────────────────────────────────────────────────────────
+# Add a block of path variables per publisher as new integrations are added.
+# These are referenced in tasks/main.yml.
+#
+# Example — PurpleAir publisher:
+# purpleair_dir: "{{ publishers_dir }}/purpleair"
+# purpleair_venv: "{{ purpleair_dir }}/.venv"
+
+quantaq_dir: "{{ publishers_dir }}/quantaq"
+quantaq_venv: "{{ quantaq_dir }}/.venv"
+
 pipeline_venv: "{{ pipeline_repo_dir}}/.venv"

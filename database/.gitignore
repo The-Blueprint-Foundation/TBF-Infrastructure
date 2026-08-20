@@ -1,0 +1,20 @@
+#Just in case added .venv here for some reason
+.venv/
+../.venv/
+#Arbitrary ignore
+*.ignore
+#Generated, not saved!
+*.csv
+#I promise I can use the terminal...
+.vscode/
+#code workspace
+*.code-workspace
+#Ignored output files
+output_ignore/
+#Ignore PNG files
+*.png
+#Ignore vscode
+*.vscode/
+#Ignore sql environment
+sql.env
+

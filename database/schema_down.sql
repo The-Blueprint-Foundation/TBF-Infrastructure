@@ -1,4 +1,8 @@
 -- Teardown script for the sensor monitoring schema
+-- Mirrors schema_up.sql and aqi_calculatior.sql.
+-- Drops views, then functions, then tables in reverse
+
+
 -- Mirrors schema_up.sql and aqi_calculator.sql.
 -- Drops procedures, views, then functions, then tables in reverse
 
