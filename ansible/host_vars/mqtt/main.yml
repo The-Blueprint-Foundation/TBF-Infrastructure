@@ -29,3 +29,4 @@ subscriber_venv: "{{ subscriber_dir }}/.venv"
 quantaq_dir: "{{ publishers_dir }}/quantaq"
 quantaq_venv: "{{ quantaq_dir }}/.venv"
 
+pipeline_venv: "{{ pipeline_repo_dir}}/.venv"

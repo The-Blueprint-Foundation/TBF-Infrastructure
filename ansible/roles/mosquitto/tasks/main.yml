@@ -204,3 +204,17 @@
     service_venv: "{{ quantaq_venv }}"
     service_script: publisher.py
     service_user: "{{ mqtt_user }}"
+- name: "Create Python virtual environment"
+  ansible.builtin.command:
+    cmd: python3 -m venv {{ pipeline_venv }}
+    creates: "{{ pipeline_venv }}/bin/activate"
+  become: true
+  become_user: "{{ mqtt_user }}"
+
+- name: "Upgrade pip in venv"
+  ansible.builtin.pip:
+    name: pip
+    state: latest
+    virtualenv: "{{ pipeline_venv }}"
+  become: true
+  become_user: "{{ mqtt_user }}"

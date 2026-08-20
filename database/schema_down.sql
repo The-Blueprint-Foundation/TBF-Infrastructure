@@ -3,6 +3,13 @@
 -- Drops views, then functions, then tables in reverse
 
 
+-- Mirrors schema_up.sql and aqi_calculator.sql.
+-- Drops procedures, views, then functions, then tables in reverse
+
+-- Procedures
+DROP PROCEDURE IF EXISTS air_quality.submit_readings;
+
+-- Views
 DROP VIEW IF EXISTS air_quality.current_sensor_aqi;
 
 -- Functions
@@ -16,4 +23,5 @@ DROP TABLE IF EXISTS air_quality.sensor_readings;
 DROP TABLE IF EXISTS air_quality.sensors;
 DROP TABLE IF EXISTS air_quality.locations;
 
+-- Schema
 DROP SCHEMA IF EXISTS air_quality;
