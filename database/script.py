@@ -20,21 +20,21 @@ Portland_Neighborhoods = [
 
 Gresham_Neighborhoods = [
     (45.501_717, -122.420_652, "Central City"),
-    (45.505595, -122.499711, "Centennial"),
-    (45.479240, -122.430628, "Gresham Butte"),
-    (45.492720, -122.419723, "Historic Southeast"),
-    (45.480939, -122.413764, "Hogan Cedars"),
-    (45.494303, -122.452311, "Hollybrook"),
-    (45.482290, -122.384174, "Kelly Creek"),
-    (45.518025, -122.432468, "North Central"),
-    (45.545273, -122.466004, "North Gresham"),
-    (45.511725, -122.403712, "Northeast"), #Hard names to parse
-    (45.504133, -122.447750, "Northwest"),
-    (45.471960, -122.507003, "Pleasant Valley"),
-    (45.495506, -122.393746, "Powell Valley"),
-    (45.519170, -122.482806, "Rockwood"),
-    (45.478652, -122.463207, "Southwest"), #SERIOUSLY?
-    (45.534566, -122.489258, "Wilkes East")
+    (45.505_595, -122.499_711, "Centennial"),
+    (45.479_240, -122.430_628, "Gresham Butte"),
+    (45.492_720, -122.419_723, "Historic Southeast"),
+    (45.480_939, -122.413_764, "Hogan Cedars"),
+    (45.494_303, -122.452_311, "Hollybrook"),
+    (45.482_290, -122.384_174, "Kelly Creek"),
+    (45.518_025, -122.432_468, "North Central"),
+    (45.545_273, -122.466_004, "North Gresham"),
+    (45.511_725, -122.403_712, "Northeast"), #Hard names to parse
+    (45.504_133, -122.447_750, "Northwest"),
+    (45.471_960, -122.507_003, "Pleasant Valley"),
+    (45.495_506, -122.393_746, "Powell Valley"),
+    (45.519_170, -122.482_806, "Rockwood"),
+    (45.478_652, -122.463_207, "Southwest"), #SERIOUSLY?
+    (45.534_566, -122.489_258, "Wilkes East")
 ]
 
 Sensor_Count:int = 1
@@ -716,11 +716,11 @@ def main()->None:
         "no-file": False,
         "raw"    : False
     }
-    argsList = [3,3,3]
+    argsList = [3,3,23]
     argsDict = {
         "before" : 3,
         "after"  : 3,
-        "sensors": 3
+        "sensors": 23 
     }
     
     exit = False
